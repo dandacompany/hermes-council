@@ -1,0 +1,15 @@
+name: council
+version: 0.6.0
+description: "Kanban-based multi-profile meetings. Moderator + panel profiles debate a topic on an isolated board (sequential or parallel), then emit summary/report/transcript/decisions. Supports HITL decision gates. Tools: council_start, council_status, council_collect, council_stop, council_resume, council_say, council_archive, council_decide, council_vote. CLI: hermes council. Slash: /council."
+author: Dante Labs
+kind: standalone
+provides_tools:
+  - council_start
+  - council_status
+  - council_collect
+  - council_stop
+  - council_resume
+  - council_say
+  - council_archive
+  - council_decide
+  - council_vote
