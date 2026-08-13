@@ -50,3 +50,38 @@ def test_relay_capable_treats_lookup_failure_as_incapable():
         raise RuntimeError("gateway down")
 
     assert relay.relay_capable(["sophie", "mia"], "slack", list_fn=boom) == set()
+
+
+TARGET = {"platform": "slack", "chat": "#council", "thread": "1755.1",
+          "explicit_thread": True}
+
+
+def test_relay_block_tells_a_capable_speaker_to_send_its_own_speech():
+    block = relay.build_relay_block(target=TARGET, topic="커피머신 교체",
+                                    speaker_sends=True, proxy_for=[])
+    assert "hermes send --to slack:#council:1755.1" in block
+    assert "[council: 커피머신 교체]" in block
+    assert "실패해도 무시" in block
+    assert "대리" not in block
+
+
+def test_relay_block_asks_the_moderator_to_proxy_for_incapable_panelists():
+    block = relay.build_relay_block(target=TARGET, topic="T",
+                                    speaker_sends=True, proxy_for=["mia", "iris"])
+    assert "mia, iris" in block
+    assert "대리" in block
+    # The moderator creates the panel cards; it must not hand a send command to a
+    # profile that cannot send.
+    assert "복사하지 마라" in block
+
+
+def test_relay_block_is_empty_when_nobody_can_send():
+    assert relay.build_relay_block(target=TARGET, topic="T",
+                                   speaker_sends=False, proxy_for=[]) == ""
+
+
+def test_relay_block_for_incapable_moderator_still_carries_the_copy_rule():
+    """The moderator may be incapable while some panelists are not."""
+    block = relay.build_relay_block(target=TARGET, topic="T",
+                                    speaker_sends=False, proxy_for=["mia"])
+    assert "hermes send" in block and "복사하지 마라" in block

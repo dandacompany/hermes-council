@@ -57,3 +57,37 @@ def relay_capable(profiles, platform: str, *, list_fn) -> set:
         except Exception:
             continue                       # incapable, not fatal
     return capable
+
+
+def build_relay_block(*, target: dict, topic: str, speaker_sends: bool,
+                      proxy_for) -> str:
+    """The '■ 채널 중계' section embedded in a card body.
+
+    Two audiences share one block because one card body is copied forward to the
+    next: the speaker rule tells whoever holds this card to send its own speech,
+    and the exclusion list tells the card's author which panel cards must NOT
+    receive that rule (profiles with no messaging credentials).
+    """
+    proxy_for = list(proxy_for or [])
+    if not speaker_sends and not proxy_for:
+        return ""
+    where = format_target(target)
+    subject = f"[council: {topic}]"
+    out = ["\n■ 채널 중계"]
+    if speaker_sends:
+        out.append(
+            "- 회의록에 append한 직후, 같은 내용을 채널로도 보낸다:\n"
+            f'  hermes send --to {where} --subject "{subject} ▸ <네 프로필> — TURN <n>" '
+            '--quiet "<네 발언 전문>"')
+    if proxy_for:
+        names = ", ".join(proxy_for)
+        out.append(
+            f"- 다음 패널은 메신저 자격이 없다: {names}. 이들의 발언은 사회자가 대신 보낸다.\n"
+            "  네가 사회자라면, 네 차례 직전 라운드에서 이들이 회의록에 남긴 발언을 각각 이렇게 보낸다:\n"
+            f'  hermes send --to {where} --subject "{subject} ▸ <그 패널> — TURN <n> (대리)" '
+            '--quiet "<그 패널의 발언 전문>"\n'
+            "  직전 라운드 것만 보낸다(그 이전 것은 이미 보냈다).\n"
+            f"- 다음 카드를 만들 때 이 '■ 채널 중계' 절을 그대로 복사하되, {names}의 카드에는 "
+            "복사하지 마라(보낼 수 없는 명령을 주지 않는다).")
+    out.append("- 전송 실패해도 무시하고 다음 단계로 진행한다. 회의는 절대 멈추지 않는다.")
+    return "\n".join(out) + "\n"
