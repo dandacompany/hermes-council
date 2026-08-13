@@ -321,3 +321,44 @@ def test_start_dry_run_never_sends_even_with_relay_on(monkeypatch):
     assert out["dry_run"] is True
     # dry_run has no side effects at all: no registry entry to carry relay metadata
     assert registry.load_index() == []
+
+
+def test_decide_posts_the_human_choice_to_the_relay_thread(monkeypatch):
+    monkeypatch.setattr(board, "send_targets", _capable("sophie"))
+    monkeypatch.setattr(board, "send", lambda **kw: "1755.1")
+    start = json.loads(tools.handle_start(
+        {"topic": "T", "panel": ["mia"], "moderator": "sophie",
+         "relay": "slack:#council"}))
+    slug = start["slug"]
+    monkeypatch.setattr(board, "list_cards", lambda b, **k: [])
+    posted = {}
+    monkeypatch.setattr(board, "send", lambda **kw: posted.update(kw) or "1755.2")
+    out = json.loads(tools.handle_decide({"slug": slug, "choice": "A안으로 간다"}))
+    assert out["relayed"] is True
+    assert posted["target"] == "slack:#council:1755.1"
+    assert "A안으로 간다" in posted["message"]
+    assert posted["profile"] == "sophie"
+
+
+def test_decide_without_relay_reports_not_relayed(monkeypatch):
+    start = json.loads(tools.handle_start(
+        {"topic": "T", "panel": ["mia"], "moderator": "sophie"}))
+    monkeypatch.setattr(board, "list_cards", lambda b, **k: [])
+    out = json.loads(tools.handle_decide({"slug": start["slug"], "choice": "A"}))
+    assert out["relayed"] is False
+
+
+def test_decide_survives_a_relay_failure(monkeypatch):
+    monkeypatch.setattr(board, "send_targets", _capable("sophie"))
+    monkeypatch.setattr(board, "send", lambda **kw: "1755.1")
+    start = json.loads(tools.handle_start(
+        {"topic": "T", "panel": ["mia"], "moderator": "sophie",
+         "relay": "slack:#council"}))
+    monkeypatch.setattr(board, "list_cards", lambda b, **k: [])
+
+    def boom(**kw):
+        raise board.BoardError("network")
+
+    monkeypatch.setattr(board, "send", boom)
+    out = json.loads(tools.handle_decide({"slug": start["slug"], "choice": "A"}))
+    assert out["decided"] == "A" and out["relayed"] is False

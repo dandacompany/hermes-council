@@ -91,3 +91,9 @@ def test_kickoff_embeds_the_relay_block_when_given():
 def test_kickoff_without_relay_block_is_unchanged():
     assert protocols.build_kickoff(mode="sequential", relay_block="", **BASE) == \
            protocols.build_kickoff(mode="sequential", **BASE)
+
+
+def test_hitl_rule_tells_the_moderator_to_announce_the_gate_on_the_channel():
+    b = protocols.build_kickoff(mode="sequential", hitl=True,
+                                relay_block="\n■ 채널 중계\n- x\n", **BASE)
+    assert "결정 요청" in b and "채널에도" in b

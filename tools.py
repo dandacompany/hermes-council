@@ -340,6 +340,15 @@ def handle_decide(args: dict, **kwargs) -> str:
         tp = registry.meeting_dir(slug) / "transcript.md"
         with tp.open("a", encoding="utf-8") as f:
             f.write(f"\n\n## [사용자 결정] {_now_iso()}\n{choice}\n")
+        relayed = False
+        rl = meta.get("relay") or {}
+        if rl.get("target"):
+            try:
+                board.send(profile=meta["moderator"], target=rl["target"],
+                           message=f"▸ 사람 결정: {choice}")
+                relayed = True
+            except Exception:
+                pass                        # the decision is recorded regardless
         resumed = []
         for c in board.list_cards(meta["board"]):
             if c.get("status") == "blocked":
@@ -348,7 +357,8 @@ def handle_decide(args: dict, **kwargs) -> str:
         if resumed:
             board.dispatch(meta["board"])
         registry.update_status(slug, "running")
-        return _dump({"slug": slug, "decided": choice, "resumed": resumed})
+        return _dump({"slug": slug, "decided": choice, "resumed": resumed,
+                      "relayed": relayed})
     except FileNotFoundError:
         return _dump({"error": f"unknown meeting slug: {args.get('slug')}"})
     except Exception as exc:
