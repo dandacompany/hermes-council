@@ -142,3 +142,16 @@ def send_targets(profile: str, *, runner=_default_runner) -> dict:
     "this profile cannot send" — relaying must never be able to fail a meeting.
     """
     return _json_obj(runner(["-p", profile, "send", "--list", "--json"]))
+
+
+def send(*, profile, target, message, subject=None, runner=_default_runner) -> str:
+    """Send one message as `profile` and return the platform's message id.
+
+    The message id is what Slack threading needs (`thread_ts`). Raises BoardError
+    on failure — callers decide whether that is fatal (it never is, for relay).
+    """
+    args = ["-p", profile, "send", "--to", target, "--json"]
+    if subject:
+        args += ["--subject", subject]
+    args.append(message)
+    return str(_json_obj(runner(args)).get("message_id") or "")

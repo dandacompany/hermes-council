@@ -237,3 +237,73 @@ def test_vote_then_status_pending_then_decide(monkeypatch):
     # gate now resolved
     st2 = json.loads(tools.handle_status({"slug": slug}))
     assert st2["pending_decision"] is None
+
+
+def _capable(*names):
+    """A send-directory stub: listed profiles have Slack, others have nothing."""
+    def list_fn(profile, **kw):
+        has = profile in names
+        return {"platforms": {"slack": [{"name": "Dante"}] if has else []}}
+    return list_fn
+
+
+def test_start_without_relay_stores_no_relay_metadata():
+    out = json.loads(tools.handle_start(
+        {"topic": "T", "panel": ["mia"], "moderator": "sophie"}))
+    assert registry.load_meta(out["slug"])["relay"] is None
+
+
+def test_start_with_relay_opens_a_thread_and_embeds_the_block(monkeypatch):
+    bodies = {}
+    monkeypatch.setattr(board, "send_targets", _capable("sophie", "noah"))
+    monkeypatch.setattr(board, "send", lambda **kw: "1755.1")
+    monkeypatch.setattr(board, "create_card",
+                        lambda **kw: bodies.update(kw) or "t_kick")
+    out = json.loads(tools.handle_start(
+        {"topic": "T", "panel": ["mia", "noah"], "moderator": "sophie",
+         "relay": "slack:#council"}))
+    meta = registry.load_meta(out["slug"])
+    assert meta["relay"]["thread"] == "1755.1"
+    assert meta["relay"]["target"] == "slack:#council:1755.1"
+    assert meta["relay"]["proxy_for"] == ["mia"]          # noah can send for itself
+    assert "■ 채널 중계" in bodies["body"]
+    assert "slack:#council:1755.1" in bodies["body"]
+
+
+def test_start_degrades_to_flat_when_opening_the_thread_fails(monkeypatch):
+    bodies = {}
+    monkeypatch.setattr(board, "send_targets", _capable("sophie"))
+
+    def boom(**kw):
+        raise board.BoardError("channel_not_found")
+
+    monkeypatch.setattr(board, "send", boom)
+    monkeypatch.setattr(board, "create_card",
+                        lambda **kw: bodies.update(kw) or "t_kick")
+    out = json.loads(tools.handle_start(
+        {"topic": "T", "panel": ["mia"], "moderator": "sophie",
+         "relay": "slack:#council"}))
+    assert "error" not in out                               # the meeting still starts
+    meta = registry.load_meta(out["slug"])
+    assert meta["relay"]["thread"] == ""                    # flat, no thread
+    assert "slack:#council" in bodies["body"]
+
+
+def test_start_warns_when_relay_is_on_but_nobody_can_send(monkeypatch):
+    monkeypatch.setattr(board, "send_targets", _capable())   # nobody
+    out = json.loads(tools.handle_start(
+        {"topic": "T", "panel": ["mia"], "moderator": "sophie",
+         "relay": "slack:#council"}))
+    assert any("발신 가능한 프로필" in w for w in out["warnings"])
+
+
+def test_start_skips_thread_for_platforms_that_cannot_open_one(monkeypatch):
+    sent = {"n": 0}
+    monkeypatch.setattr(board, "send_targets", _capable("sophie"))
+    monkeypatch.setattr(board, "send",
+                        lambda **kw: sent.__setitem__("n", sent["n"] + 1) or "x")
+    out = json.loads(tools.handle_start(
+        {"topic": "T", "panel": ["mia"], "moderator": "sophie",
+         "relay": "telegram:-100123"}))
+    assert sent["n"] == 0                                   # no header message
+    assert registry.load_meta(out["slug"])["relay"]["thread"] == ""

@@ -97,3 +97,17 @@ def test_send_targets_asks_the_profiles_own_directory():
     got = board.send_targets("sophie", runner=runner)
     assert calls[0] == ["-p", "sophie", "send", "--list", "--json"]
     assert got["platforms"]["slack"] == [{"name": "Dante"}]
+
+
+def test_send_uses_the_given_profiles_identity_and_returns_message_id():
+    calls = []
+
+    def runner(args):
+        calls.append(list(args))
+        return 'banner\n{"success": true, "message_id": "1755.1"}'
+
+    mid = board.send(profile="sophie", target="slack:#council",
+                     message="▶ 회의 시작: T", subject=None, runner=runner)
+    assert mid == "1755.1"
+    assert calls[0] == ["-p", "sophie", "send", "--to", "slack:#council",
+                        "--json", "▶ 회의 시작: T"]

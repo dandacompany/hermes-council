@@ -2,9 +2,9 @@
 from __future__ import annotations
 import json, datetime
 try:  # package context (Hermes-loaded plugin)
-    from . import registry, protocols, render, board, preflight, lint
+    from . import registry, protocols, render, board, preflight, lint, relay
 except ImportError:  # flat/standalone context (e.g. pytest at repo root)
-    import registry, protocols, render, board, preflight, lint  # type: ignore
+    import registry, protocols, render, board, preflight, lint, relay  # type: ignore
 
 
 def _dump(payload: dict) -> str:
@@ -31,6 +31,8 @@ def handle_start(args: dict, **kwargs) -> str:
         roles = dict(args.get("roles") or {})
         brief_raw = args.get("brief")
         hitl = bool(args.get("hitl", False))
+        relay_spec = str(args.get("relay") or "").strip()
+        relay_thread = bool(args.get("relay_thread", True))
 
         known = set(board.list_profiles())
         missing = [p for p in [moderator, *panel] if p not in known]
@@ -41,6 +43,31 @@ def handle_start(args: dict, **kwargs) -> str:
             moderator, panel,
             approval_mode_fn=board.profile_approval_mode,
             running_profiles=board.running_gateway_profiles())
+
+        # --- relay: decide once, then let the workers carry it card to card ---
+        relay_meta, relay_block = None, ""
+        if relay_spec:
+            target = relay.parse_target(relay_spec)
+            capable = relay.relay_capable([moderator, *panel], target["platform"],
+                                          list_fn=board.send_targets)
+            if not capable:
+                warnings.append(
+                    "경고: 중계를 켰으나 발신 가능한 프로필이 없습니다 — 회의는 정상 진행되고 "
+                    "채널 전송만 생략됩니다. (`hermes -p <프로필> send --list`로 확인)")
+            if not dry_run and relay_thread and relay.can_open_thread(target) and moderator in capable:
+                try:
+                    mid = board.send(profile=moderator,
+                                     target=relay.format_target(target),
+                                     message=f"▶ 회의 시작: {topic}")
+                    target["thread"] = mid
+                except Exception:
+                    pass                    # degrade to flat; the meeting still runs
+            proxy_for = [p for p in panel if p not in capable]
+            relay_meta = {"target": relay.format_target(target),
+                          "thread": target["thread"], "proxy_for": proxy_for}
+            relay_block = relay.build_relay_block(
+                target=target, topic=topic,
+                speaker_sends=moderator in capable, proxy_for=proxy_for)
 
         taken = {r["slug"] for r in registry.load_index()}
         # Date-prefixed slug for readable, sortable meeting ids (unless explicit slug given).
@@ -60,13 +87,15 @@ def handle_start(args: dict, **kwargs) -> str:
                 "panel": panel, "max_turns": max_turns, "allow_early_stop": allow_early_stop,
                 "board": board_slug, "status": "seeded", "created_at": _now_iso(),
                 "final_at": None, "roles": roles, "has_brief": bool(brief_text),
-                "card_cap": preflight.card_cap(len(panel), max_turns), "hitl": hitl}
+                "card_cap": preflight.card_cap(len(panel), max_turns), "hitl": hitl,
+                "relay": relay_meta}
         transcript_path = str(registry.meeting_dir(slug) / "transcript.md")
         body_text = protocols.build_kickoff(mode=mode, topic=topic, slug=slug, moderator=moderator,
                                             panel=panel, max_turns=max_turns,
                                             allow_early_stop=allow_early_stop,
                                             transcript_path=transcript_path,
-                                            roles=roles, brief_note=brief_note, hitl=hitl)
+                                            roles=roles, brief_note=brief_note, hitl=hitl,
+                                            relay_block=relay_block)
 
         if dry_run:
             # No side effects: don't create the registry entry or the board.
