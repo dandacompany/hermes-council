@@ -2,9 +2,9 @@
 from __future__ import annotations
 import json, datetime
 try:  # package context (Hermes-loaded plugin)
-    from . import registry, protocols, render, board, preflight, lint, relay
+    from . import registry, protocols, render, board, preflight, lint, relay, souls
 except ImportError:  # flat/standalone context (e.g. pytest at repo root)
-    import registry, protocols, render, board, preflight, lint, relay  # type: ignore
+    import registry, protocols, render, board, preflight, lint, relay, souls  # type: ignore
 
 
 def _dump(payload: dict) -> str:
@@ -28,7 +28,9 @@ def handle_start(args: dict, **kwargs) -> str:
         max_turns = int(args.get("max_turns") or 5)
         allow_early_stop = bool(args.get("allow_early_stop", True))
         dry_run = bool(args.get("dry_run", False))
-        roles = dict(args.get("roles") or {})
+        # Explicit roles win; the rest come from each profile's SOUL.md so that
+        # "different profiles, different angles" is the default, not a setting.
+        roles = souls.roles_for(panel, dict(args.get("roles") or {}))
         brief_raw = args.get("brief")
         hitl = bool(args.get("hitl", False))
         relay_spec = str(args.get("relay") or "").strip()
