@@ -82,6 +82,17 @@ def test_every_card_carries_a_rerun_guard():
     assert "같은 프로필·같은 TURN" in b
 
 
+def test_rerun_guard_continues_the_turn_instead_of_jumping_to_next_card():
+    """C1: on a resumed HITL/CAP card the rerun guard must not force the worker
+    into step 4 (next-card creation) — it must let the remaining steps of this
+    turn run, since those may be SUMMARY+FINAL+DECISIONS + chain termination."""
+    b = protocols.build_kickoff(mode="sequential", **BASE)
+    assert "재실행된 카드" in b
+    assert "다음 카드 생성 단계로 넘어가라" not in b       # no longer routes to step 4
+    assert "다음 카드 생성으로 곧장 건너뛰지 마라" in b
+    assert "나머지 단계" in b and "계속" in b
+
+
 def test_kickoff_embeds_the_relay_block_when_given():
     block = "\n■ 채널 중계\n- 테스트 지시문\n"
     b = protocols.build_kickoff(mode="sequential", relay_block=block, **BASE)

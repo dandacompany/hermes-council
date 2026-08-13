@@ -80,8 +80,14 @@ def test_relay_block_is_empty_when_nobody_can_send():
                                    speaker_sends=False, proxy_for=[]) == ""
 
 
-def test_relay_block_for_incapable_moderator_still_carries_the_copy_rule():
-    """The moderator may be incapable while some panelists are not."""
+def test_relay_block_when_moderator_incapable_but_a_panelist_is_not():
+    """An incapable moderator cannot proxy anyone — no proxy paragraph — but the
+    self-send rule still applies for whoever holds a capable card, and every
+    incapable profile (moderator included) must be named in the copy-exclusion
+    list so it never receives a doomed send command."""
     block = relay.build_relay_block(target=TARGET, topic="T",
-                                    speaker_sends=False, proxy_for=["mia"])
-    assert "hermes send" in block and "복사하지 마라" in block
+                                    speaker_sends=True, proxy_for=[],
+                                    exclude_for=["sophie", "mia"])
+    assert "hermes send" in block
+    assert "대리" not in block                 # no proxying without a capable moderator
+    assert "복사하지 마라" in block and "sophie, mia" in block

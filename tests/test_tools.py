@@ -382,6 +382,29 @@ def test_decide_survives_a_malformed_relay_meta(monkeypatch):
     assert out["decided"] == "A" and out["relayed"] is False
 
 
+def test_start_relay_routes_on_card_holder_not_moderator_capability(monkeypatch):
+    """Moderator has no messaging credentials, one panelist (noah) does. The capable
+    panelist must get the self-send rule, the moderator must not be handed a proxy
+    command it cannot execute, and warnings must explain why."""
+    bodies = {}
+    monkeypatch.setattr(board, "send_targets", _capable("noah"))
+    sent = {"n": 0}
+    monkeypatch.setattr(board, "send",
+                        lambda **kw: sent.__setitem__("n", sent["n"] + 1) or "1755.1")
+    monkeypatch.setattr(board, "create_card",
+                        lambda **kw: bodies.update(kw) or "t_kick")
+    out = json.loads(tools.handle_start(
+        {"topic": "T", "panel": ["mia", "noah"], "moderator": "sophie",
+         "relay": "slack:#council"}))
+    assert "error" not in out
+    body = bodies["body"]
+    assert "hermes send" in body                             # noah's send-your-own-speech rule
+    assert "대리" not in body                                  # sophie (incapable) can't proxy
+    assert sent["n"] == 0                                     # header open needs a capable moderator
+    assert registry.load_meta(out["slug"])["relay"]["proxy_for"] == []
+    assert any("사회자" in w and "sophie" in w for w in out["warnings"])
+
+
 def test_status_reports_relay_state(monkeypatch):
     monkeypatch.setattr(board, "send_targets", _capable("sophie"))
     monkeypatch.setattr(board, "send", lambda **kw: "1755.1")

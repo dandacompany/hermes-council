@@ -50,11 +50,24 @@ def handle_start(args: dict, **kwargs) -> str:
             target = relay.parse_target(relay_spec)
             capable = relay.relay_capable([moderator, *panel], target["platform"],
                                           list_fn=board.send_targets)
+            moderator_capable = moderator in capable
+            incapable = [p for p in [moderator, *panel] if p not in capable]
             if not capable:
                 warnings.append(
                     "경고: 중계를 켰으나 발신 가능한 프로필이 없습니다 — 회의는 정상 진행되고 "
                     "채널 전송만 생략됩니다. (`hermes -p <프로필> send --list`로 확인)")
-            if not dry_run and relay_thread and relay.can_open_thread(target) and moderator in capable:
+            elif not moderator_capable:
+                incapable_panel = [p for p in panel if p not in capable]
+                if incapable_panel:
+                    warnings.append(
+                        f"경고: 사회자({moderator})에게 메신저 자격이 없어 대리 전송이 불가능합니다 — "
+                        f"자격 없는 패널({', '.join(incapable_panel)})의 발언은 채널로 중계되지 않습니다. "
+                        "(자격 있는 패널은 자기 발언을 직접 보냅니다.)")
+                else:
+                    warnings.append(
+                        f"경고: 사회자({moderator})에게 메신저 자격이 없어 사회자의 판단은 채널로 "
+                        "중계되지 않습니다. (자격 있는 패널은 자기 발언을 직접 보냅니다.)")
+            if not dry_run and relay_thread and relay.can_open_thread(target) and moderator_capable:
                 try:
                     mid = board.send(profile=moderator,
                                      target=relay.format_target(target),
@@ -62,12 +75,13 @@ def handle_start(args: dict, **kwargs) -> str:
                     target["thread"] = mid
                 except Exception:
                     pass                    # degrade to flat; the meeting still runs
-            proxy_for = [p for p in panel if p not in capable]
+            # Proxying requires a moderator who can actually send.
+            proxy_for = [p for p in panel if p not in capable] if moderator_capable else []
             relay_meta = {"target": relay.format_target(target),
                           "thread": target["thread"], "proxy_for": proxy_for}
             relay_block = relay.build_relay_block(
                 target=target, topic=topic,
-                speaker_sends=moderator in capable, proxy_for=proxy_for)
+                speaker_sends=bool(capable), proxy_for=proxy_for, exclude_for=incapable)
 
         taken = {r["slug"] for r in registry.load_index()}
         # Date-prefixed slug for readable, sortable meeting ids (unless explicit slug given).
@@ -102,7 +116,8 @@ def handle_start(args: dict, **kwargs) -> str:
             return _dump({"dry_run": True, "slug": slug, "board": board_slug,
                           "kickoff_assignee": moderator, "warnings": warnings,
                           "roles": roles, "has_brief": bool(brief_text),
-                          "kickoff_body_preview": body_text[:600]})
+                          "kickoff_body_preview": body_text[:600],
+                          "relay_block": relay_block})
 
         d = registry.create_meeting(meta)
         if brief_text:
@@ -345,6 +360,7 @@ def handle_decide(args: dict, **kwargs) -> str:
             rl = meta.get("relay") or {}
             if isinstance(rl, dict) and rl.get("target"):
                 board.send(profile=meta["moderator"], target=rl["target"],
+                           subject=f"[council: {meta['topic']}]",
                            message=f"▸ 사람 결정: {choice}")
                 relayed = True
         except Exception:

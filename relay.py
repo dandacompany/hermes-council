@@ -60,16 +60,25 @@ def relay_capable(profiles, platform: str, *, list_fn) -> set:
 
 
 def build_relay_block(*, target: dict, topic: str, speaker_sends: bool,
-                      proxy_for) -> str:
+                      proxy_for, exclude_for=None) -> str:
     """The '■ 채널 중계' section embedded in a card body.
 
     Two audiences share one block because one card body is copied forward to the
-    next: the speaker rule tells whoever holds this card to send its own speech,
-    and the exclusion list tells the card's author which panel cards must NOT
-    receive that rule (profiles with no messaging credentials).
+    next: the speaker rule tells whoever holds this card to send its own speech
+    (`speaker_sends` — true whenever *someone* in the meeting can send, not just
+    the moderator), and the exclusion list tells the card's author which cards
+    must NOT receive that rule (any profile with no messaging credentials,
+    including the moderator itself when it lacks them — `exclude_for`; defaults
+    to `proxy_for` for callers that don't distinguish the two).
+
+    `proxy_for` (panelists the moderator proxies for) is only meaningful when the
+    moderator itself can send — a moderator with no credentials cannot proxy
+    anyone, so callers should pass an empty `proxy_for` in that case and rely on
+    `exclude_for` to keep the doomed send command out of every incapable card.
     """
     proxy_for = list(proxy_for or [])
-    if not speaker_sends and not proxy_for:
+    exclude_for = list(exclude_for) if exclude_for is not None else list(proxy_for)
+    if not speaker_sends and not exclude_for:
         return ""
     where = format_target(target)
     subject = f"[council: {topic}]"
@@ -86,7 +95,10 @@ def build_relay_block(*, target: dict, topic: str, speaker_sends: bool,
             "  네가 사회자라면, 네 차례 직전 라운드에서 이들이 회의록에 남긴 발언을 각각 이렇게 보낸다:\n"
             f'  hermes send --to {where} --subject "{subject} ▸ <그 패널> — TURN <n> (대리)" '
             '--quiet "<그 패널의 발언 전문>"\n'
-            "  직전 라운드 것만 보낸다(그 이전 것은 이미 보냈다).\n"
+            "  직전 라운드 것만 보낸다(그 이전 것은 이미 보냈다).")
+    if exclude_for:
+        names = ", ".join(exclude_for)
+        out.append(
             f"- 다음 카드를 만들 때 이 '■ 채널 중계' 절을 그대로 복사하되, {names}의 카드에는 "
             "복사하지 마라(보낼 수 없는 명령을 주지 않는다).")
     out.append("- 전송 실패해도 무시하고 다음 단계로 진행한다. 회의는 절대 멈추지 않는다.")
