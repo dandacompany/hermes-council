@@ -46,12 +46,12 @@ hermes council --help
 
 핸들러는 Hermes 계약 `handle(args: dict, **kwargs) -> str`(JSON 문자열)를 따른다.
 
-| 도구              | 역할                                                                                                                                      |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `council_start`   | 회의 씨앗 생성(topic, panel, moderator, mode, max_turns, allow_early_stop). slug/board/kickoff id 반환. `dry_run`은 디스패치 없이 계획만. |
-| `council_status`  | 카드 상태, 회의록 섹션 수, FINAL 도달 여부, blocked 카드 복구 힌트.                                                                       |
-| `council_collect` | 회의록을 `summary.md` / `report.md` / `transcript.export.md`로 분리. `out_dir` 지정 시 복사.                                              |
-| `council_stop`    | 사회자에게 즉시 종합·종료를 지시하는 카드 주입.                                                                                           |
+| 도구              | 역할                                                                                                                                                            |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `council_start`   | 회의 씨앗 생성(topic, panel, moderator, mode, max_turns, allow_early_stop, roles, brief, `hitl`). slug/board/kickoff id 반환. `dry_run`은 디스패치 없이 계획만. |
+| `council_status`  | 카드 상태, 회의록 섹션 수, FINAL 도달 여부, blocked 카드 복구 힌트.                                                                                             |
+| `council_collect` | 회의록을 `summary.md` / `report.md` / `transcript.export.md`로 분리. `out_dir` 지정 시 복사.                                                                    |
+| `council_stop`    | 사회자에게 즉시 종합·종료를 지시하는 카드 주입.                                                                                                                 |
 
 `council_start`·`council_status`는 `warnings`도 반환한다 — 프리플라이트(게이트웨이 미실행, manual 승인 모드로 인한 백그라운드 타임아웃 위험)와 회의록 린트(헤더 형식 오류, SUMMARY/FINAL 누락·중복). 막힌 회의는 `council_resume(slug)`로 복구한다.
 

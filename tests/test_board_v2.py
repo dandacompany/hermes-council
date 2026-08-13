@@ -67,6 +67,21 @@ def test_nonzero_runner_raises_boarderror():
 def test_remove_board_hard_flag():
     runner, calls = make_runner({})
     board.remove_board("demo", hard=True, runner=runner)
-    assert calls[0] == ["kanban", "boards", "rm", "council-demo", "--hard", "--yes"]
+    assert calls[0] == ["kanban", "boards", "rm", "council-demo", "--delete"]
     board.remove_board("demo", hard=False, runner=runner)
     assert calls[1] == ["kanban", "boards", "rm", "council-demo"]
+
+
+def test_remove_board_falls_back_to_legacy_hard_flags():
+    """Older Hermes builds reject --delete; fall back instead of leaving the board."""
+    calls = []
+
+    def runner(args):
+        calls.append(list(args))
+        if "--delete" in args:
+            raise board.BoardError("unrecognized arguments: --delete")
+        return ""
+
+    board.remove_board("demo", hard=True, runner=runner)
+    assert calls == [["kanban", "boards", "rm", "council-demo", "--delete"],
+                     ["kanban", "boards", "rm", "council-demo", "--hard", "--yes"]]

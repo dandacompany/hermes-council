@@ -53,6 +53,17 @@ _REQUEST_RE = re.compile(r"^##\s*\[결정 요청\][^\n]*$", re.M)
 _DECIDED_RE = re.compile(r"^##\s*\[사용자 결정\][^\n]*$", re.M)
 
 
+def _split_options(raw: str) -> list[str]:
+    """Split a '선택지:' line into choices.
+
+    ' / ' is the canonical separator (council_vote joins with it). Commas are only a
+    fallback for slash-less lines — Korean option text routinely contains commas,
+    and splitting on them shreds a single choice into fragments.
+    """
+    parts = re.split(r"\s*/\s*", raw) if "/" in raw else raw.split(",")
+    return [p.strip() for p in parts if p.strip()]
+
+
 def parse_pending_decision(transcript: str) -> dict | None:
     """Return the open decision gate, or None.
 
@@ -76,7 +87,7 @@ def parse_pending_decision(transcript: str) -> dict | None:
         if qm:
             question = qm.group(1).strip()
         elif om:
-            options = [o.strip() for o in re.split(r"[/,]", om.group(1)) if o.strip()]
+            options = _split_options(om.group(1))
     if not question:
         question = body.strip()[:200]
     return {"question": question, "options": options}

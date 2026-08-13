@@ -24,6 +24,8 @@ START_SCHEMA = {
             "slug": {"type": "string", "description": "Optional explicit slug (else derived from topic)."},
             "brief": {"type": "string", "description": "Agenda/context: inline text or a path to a file. Saved to <slug>/brief.md; workers read it before speaking."},
             "roles": {"type": "object", "description": "Per-panelist perspective hints, e.g. {\"mia\": \"market view\", \"noah\": \"ops view\"}."},
+            "hitl": {"type": "boolean",
+                     "description": "Ask the human before the moderator finalizes (HITL gate). The moderator opens a '결정 요청' and blocks; resolve it with council_decide (default false)."},
             "dry_run": {"type": "boolean", "description": "Plan cards without dispatching (default false)."},
         },
         "required": ["topic", "panel", "moderator"],

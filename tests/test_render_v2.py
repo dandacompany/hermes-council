@@ -72,3 +72,16 @@ def test_pending_decision_resolved_returns_none():
 
 def test_no_gate_returns_none():
     assert render.parse_pending_decision("## [mia] — TURN 1 (speaker)\n의견.\n") is None
+
+
+def test_pending_options_keep_commas_inside_a_choice():
+    """Korean option text routinely contains commas; only ' / ' separates choices."""
+    t = ("## [결정 요청] now\n질문: 어느 쪽으로?\n"
+         "선택지: A. 2주 유지 후 비교 결정(단, 위생 사유 시 즉시 교체) / B. 즉시 교체 / C. 기타\n")
+    pd = render.parse_pending_decision(t)
+    assert pd["options"] == ["A. 2주 유지 후 비교 결정(단, 위생 사유 시 즉시 교체)", "B. 즉시 교체", "C. 기타"]
+
+
+def test_pending_options_fall_back_to_commas_without_slashes():
+    t = "## [결정 요청] now\n질문: 어느 쪽?\n선택지: A, B, C\n"
+    assert render.parse_pending_decision(t)["options"] == ["A", "B", "C"]

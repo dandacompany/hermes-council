@@ -66,13 +66,20 @@ def unblock(board: str, task_id: str, *, runner=_default_runner) -> None:
 
 
 def remove_board(slug: str, *, hard: bool = False, runner=_default_runner) -> None:
-    args = ["kanban", "boards", "rm", f"council-{slug}"]
-    if hard:
-        args += ["--hard", "--yes"]
-    try:
-        runner(args)
-    except BoardError:
-        pass                       # board may already be gone; housekeeping is best-effort
+    """Archive (default) or hard-delete a meeting's board.
+
+    Hermes ≥0.20 spells the hard delete `--delete`; older builds used `--hard --yes`.
+    Try the current flag first, then the legacy one — otherwise the CLI rejects the
+    arguments and `council rm` silently leaves the board behind.
+    """
+    base = ["kanban", "boards", "rm", f"council-{slug}"]
+    attempts = [base + ["--delete"], base + ["--hard", "--yes"]] if hard else [base]
+    for args in attempts:
+        try:
+            runner(args)
+            return
+        except BoardError:
+            continue               # board may already be gone; housekeeping is best-effort
 
 
 def comment(board: str, task_id: str, text: str, *, runner=_default_runner) -> None:

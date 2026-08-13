@@ -1,4 +1,6 @@
-from council import schemas
+import argparse
+
+from council import cli, schemas
 
 
 def test_all_four_present_and_shaped():
@@ -16,3 +18,19 @@ def test_start_requires_core_fields():
     assert {"topic", "panel", "moderator", "mode"} <= set(props)
     assert set(schemas.START_SCHEMA["parameters"]["required"]) >= {"topic", "panel", "moderator"}
     assert props["mode"]["enum"] == ["sequential", "parallel"]
+
+
+def test_start_exposes_hitl_like_the_cli():
+    """The CLI's --hitl must be reachable from natural language too (agent tool call)."""
+    props = schemas.START_SCHEMA["parameters"]["properties"]
+    assert props["hitl"]["type"] == "boolean"
+    assert "hitl" not in schemas.START_SCHEMA["parameters"]["required"]
+
+
+def test_cli_start_options_are_all_reachable_from_the_tool_schema():
+    """Whatever `hermes council start` can pass to handle_start, an agent must be able to pass too."""
+    p = argparse.ArgumentParser()
+    cli._add_start_args(p)
+    args = p.parse_args(["--topic", "T", "--panel", "mia", "--moderator", "sophie"])
+    payload = cli._start_args(args)
+    assert set(payload) <= set(schemas.START_SCHEMA["parameters"]["properties"])
