@@ -7,6 +7,8 @@ PROTOCOL_RULES = """\
 - 레지스트리 규약: 이 회의는 ~/.hermes/.council/{slug}/ 아래에 저장된다(meta.json·transcript.md·산출물). 보드는 council-{slug}.
 
 ■ 절대 규칙 (모든 카드 공통)
+0) 시작 전 점검: 이번 차례에 해당하는 섹션(같은 프로필·같은 TURN 번호 헤더)이 회의록에 이미 있으면,
+   append도 채널 전송도 하지 말고 곧바로 4)의 다음 카드 생성 단계로 넘어가라. 재실행된 카드다.
 1) 먼저 {transcript_path} 전문을 읽어 사회자 지시와 이전 발언을 모두 파악한다.
 2) 아래 "== 이번 차례 =="의 역할을 수행한다.
 3) 네 발언/판단을 회의록 끝에 append 한다(덮어쓰기 금지):
@@ -72,11 +74,14 @@ _HITL_RULE = (
 
 
 def build_kickoff(*, mode, topic, slug, moderator, panel, max_turns,
-                  allow_early_stop, transcript_path, roles=None, brief_note="", hitl=False) -> str:
+                  allow_early_stop, transcript_path, roles=None, brief_note="",
+                  hitl=False, relay_block="") -> str:
     head = _header(topic, mode, panel, moderator, max_turns, allow_early_stop,
                    transcript_path, slug, roles=roles, brief_note=brief_note)
     if hitl:
         head += _HITL_RULE
+    if relay_block:
+        head += relay_block
     if mode == "parallel":
         turn_block = (
             "== 진행 상태 ==\nROUND: 1 / CAP: {cap}\n\n"

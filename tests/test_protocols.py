@@ -73,3 +73,21 @@ def test_kickoff_hitl_adds_gate_rule():
     assert "HITL" in b and "결정 요청" in b and "awaiting-human" in b
     b2 = protocols.build_kickoff(mode="sequential", hitl=False, **BASE)
     assert "결정 요청" not in b2
+
+
+def test_every_card_carries_a_rerun_guard():
+    """A resumed card re-runs from the top; it must not append or send twice."""
+    b = protocols.build_kickoff(mode="sequential", **BASE)
+    assert "재실행된 카드" in b
+    assert "같은 프로필·같은 TURN" in b
+
+
+def test_kickoff_embeds_the_relay_block_when_given():
+    block = "\n■ 채널 중계\n- 테스트 지시문\n"
+    b = protocols.build_kickoff(mode="sequential", relay_block=block, **BASE)
+    assert "■ 채널 중계" in b and "테스트 지시문" in b
+
+
+def test_kickoff_without_relay_block_is_unchanged():
+    assert protocols.build_kickoff(mode="sequential", relay_block="", **BASE) == \
+           protocols.build_kickoff(mode="sequential", **BASE)
