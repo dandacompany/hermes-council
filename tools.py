@@ -51,6 +51,8 @@ def handle_start(args: dict, **kwargs) -> str:
             capable = relay.relay_capable([moderator, *panel], target["platform"],
                                           list_fn=board.send_targets)
             moderator_capable = moderator in capable
+            capable_ordered = [p for p in [moderator, *panel] if p in capable]
+            sender = capable_ordered[0] if capable_ordered else None
             if not capable:
                 warnings.append(
                     "경고: 중계를 켰으나 발신 가능한 프로필이 없습니다 — 회의는 정상 진행되고 "
@@ -59,13 +61,13 @@ def handle_start(args: dict, **kwargs) -> str:
                 incapable_panel = [p for p in panel if p not in capable]
                 if incapable_panel:
                     warnings.append(
-                        f"경고: 사회자({moderator})에게 메신저 자격이 없어 대리 전송이 불가능합니다 — "
-                        f"자격 없는 패널({', '.join(incapable_panel)})의 발언은 채널로 중계되지 않습니다. "
-                        "(자격 있는 패널은 자기 발언을 직접 보냅니다.)")
+                        f"안내: 사회자({moderator})에게 메신저 자격이 없어, 자격 없는 참가자"
+                        f"({', '.join(incapable_panel)})의 발언은 council이 {sender} 자격으로 "
+                        "대리 전송합니다. 이 대리 전송은 `council run`이 붙어 있는 동안에만 이뤄집니다.")
                 else:
                     warnings.append(
-                        f"경고: 사회자({moderator})에게 메신저 자격이 없어 사회자의 판단은 채널로 "
-                        "중계되지 않습니다. (자격 있는 패널은 자기 발언을 직접 보냅니다.)")
+                        f"안내: 사회자({moderator})에게 메신저 자격이 없어, 사회자의 판단은 council이 "
+                        "대리 전송합니다. 이 대리 전송은 `council run`이 붙어 있는 동안에만 이뤄집니다.")
             if not dry_run and relay_thread and relay.can_open_thread(target) and moderator_capable:
                 try:
                     mid = board.send(profile=moderator,
@@ -74,11 +76,17 @@ def handle_start(args: dict, **kwargs) -> str:
                     target["thread"] = mid
                 except Exception:
                     pass                    # degrade to flat; the meeting still runs
-            # Proxying requires a moderator who can actually send.
+            # Worker-side proxying needs a moderator who can send — its card is the
+            # one that runs between every pair of turns. When it can't, the poller
+            # takes the proxy work instead (council_relay_flush), which is why the
+            # two lists are mutually exclusive by construction.
             proxy_for = [p for p in panel if p not in capable] if moderator_capable else []
-            capable_ordered = [p for p in [moderator, *panel] if p in capable]
+            poller_proxy_for = ([] if moderator_capable
+                                else [p for p in [moderator, *panel] if p not in capable])
             relay_meta = {"target": relay.format_target(target),
-                          "thread": target["thread"], "proxy_for": proxy_for}
+                          "thread": target["thread"], "proxy_for": proxy_for,
+                          "poller_proxy_for": poller_proxy_for,
+                          "sender": sender}
             relay_block = relay.build_relay_block(
                 target=target, topic=topic, capable=capable_ordered, proxy_for=proxy_for)
 
@@ -446,3 +454,61 @@ def handle_council_command(raw_args: str = "", **kwargs) -> str:
         return "\n".join(lines)
     except Exception as exc:
         return f"council 목록 실패: {type(exc).__name__}: {exc}"
+
+
+def _relay_sent_path(slug: str):
+    return registry.meeting_dir(slug) / "relay_sent.json"
+
+
+def _load_relay_sent(slug: str) -> list:
+    p = _relay_sent_path(slug)
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+
+
+def handle_relay_flush(args: dict, **kwargs) -> str:
+    """Post the speeches nobody can send for themselves, exactly once each.
+
+    Workers relay their own speech under their own identity; that is the whole point
+    of worker-side sending. Proxy posts have already given identity up, so council
+    does them here — from the transcript, against an on-disk record — which is the
+    only way to cover a meeting whose moderator has no messaging credentials.
+    Nothing here may raise: a relay hiccup must never disturb a running meeting.
+    """
+    try:
+        slug = str(args.get("slug") or "").strip()
+        if not slug:
+            return _dump({"error": "slug is required"})
+        meta = registry.load_meta(slug)
+        rl = meta.get("relay") or {}
+        if not isinstance(rl, dict):
+            rl = {}
+        proxy_for, sender = rl.get("poller_proxy_for") or [], rl.get("sender")
+        if not (rl.get("target") and proxy_for and sender):
+            return _dump({"slug": slug, "sent": 0, "failed": 0, "pending": 0})
+        transcript = (registry.meeting_dir(slug) / "transcript.md").read_text(encoding="utf-8")
+        sent_keys = _load_relay_sent(slug)
+        pending = relay.pending_proxy_sections(transcript, proxy_for=proxy_for,
+                                               sent_keys=sent_keys)
+        sent = failed = 0
+        for section in pending:
+            try:
+                board.send(profile=sender, target=rl["target"],
+                           subject=relay.proxy_subject(meta["topic"], section),
+                           message=section["body"])
+            except Exception:
+                failed += 1
+                continue           # stays pending; the next tick retries it
+            sent_keys.append(section["key"])
+            sent += 1
+            # Record after each send: a crash mid-flush must not replay what went out.
+            _relay_sent_path(slug).write_text(json.dumps(sent_keys, ensure_ascii=False),
+                                              encoding="utf-8")
+        return _dump({"slug": slug, "sent": sent, "failed": failed,
+                      "pending": len(pending) - sent})
+    except FileNotFoundError:
+        return _dump({"error": f"unknown meeting slug: {args.get('slug')}"})
+    except Exception as exc:
+        return _dump({"error": f"council_relay_flush failed: {type(exc).__name__}: {exc}"})

@@ -6,7 +6,8 @@ from council import cli, schemas
 def test_all_four_present_and_shaped():
     assert set(schemas.ALL) == {"council_start", "council_status", "council_collect", "council_stop",
                                 "council_resume", "council_say", "council_archive",
-                                "council_decide", "council_vote"}
+                                "council_decide", "council_vote",
+                                "council_relay_flush"}
     for name, s in schemas.ALL.items():
         assert s["name"] == name
         assert isinstance(s["description"], str) and s["description"]

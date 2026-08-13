@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 
-def drive(slug, *, status_fn, resume_fn, collect_fn, sleep_fn, stop_fn=None,
+def drive(slug, *, status_fn, resume_fn, collect_fn, sleep_fn, stop_fn=None, relay_fn=None,
           interval=20, max_ticks=90, auto_resume=True) -> dict:
     """Poll a meeting until FINAL, auto-resuming blocked cards, then collect.
 
@@ -17,6 +17,12 @@ def drive(slug, *, status_fn, resume_fn, collect_fn, sleep_fn, stop_fn=None,
     stopped = False
     for _ in range(max_ticks):
         st = status_fn(slug)
+        if relay_fn:
+            # Proxy relay is the poller's job; a failure here must not disturb the run.
+            try:
+                relay_fn(slug)
+            except Exception:
+                pass
         if st.get("final_reached"):
             return {"outcome": "final", "slug": slug, **collect_fn(slug)}
         if st.get("pending_decision"):

@@ -109,5 +109,13 @@ VOTE_SCHEMA = {
                    "required": ["slug", "question"]},
 }
 
+RELAY_FLUSH_SCHEMA = {
+    "name": "council_relay_flush",
+    "description": "Post any speeches that no participant can relay for itself (the moderator has no messenger credentials) to the meeting's channel, exactly once each. No-op when relay is off or everyone sends for themselves.",
+    "parameters": {"type": "object",
+                   "properties": {"slug": {"type": "string", "description": "Meeting slug."}},
+                   "required": ["slug"]},
+}
+
 ALL = {s["name"]: s for s in (START_SCHEMA, STATUS_SCHEMA, COLLECT_SCHEMA, STOP_SCHEMA,
-                              RESUME_SCHEMA, SAY_SCHEMA, ARCHIVE_SCHEMA, DECIDE_SCHEMA, VOTE_SCHEMA)}
+                              RESUME_SCHEMA, SAY_SCHEMA, ARCHIVE_SCHEMA, DECIDE_SCHEMA, VOTE_SCHEMA, RELAY_FLUSH_SCHEMA)}

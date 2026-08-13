@@ -22,7 +22,7 @@ def test_register_wires_all_surfaces():
     ctx = FakeCtx(); register(ctx)
     assert {t["name"] for t in ctx.tools} == {"council_start", "council_status", "council_collect", "council_stop",
         "council_resume", "council_say", "council_archive",
-        "council_decide", "council_vote"}
+        "council_decide", "council_vote", "council_relay_flush"}
     assert all(t["toolset"] == "council" for t in ctx.tools)
     assert "council" in ctx.commands
     assert "council" in ctx.cli

@@ -107,3 +107,34 @@ def build_relay_block(*, target: dict, topic: str, capable, proxy_for=None) -> s
                 "이 절이 회의 끝까지 이어지게 한다).")
     out.append("- 전송 실패해도 무시하고 다음 단계로 진행한다. 회의는 절대 멈추지 않는다.")
     return "\n".join(out) + "\n"
+
+
+def section_key(section: dict) -> str:
+    """Identity of one transcript section, stable across re-reads."""
+    return f"{section['speaker']}#{section['turn']}#{section['role']}"
+
+
+def pending_proxy_sections(transcript: str, *, proxy_for, sent_keys) -> list:
+    """Transcript sections that council must relay on someone else's behalf.
+
+    Only for profiles in `proxy_for` — a profile that can send posts its own speech
+    from its own card, under its own identity. `sent_keys` is what already went out;
+    it lives on disk, so re-attaching a run cannot double-post.
+    """
+    try:
+        from . import render
+    except ImportError:
+        import render  # type: ignore
+    proxy_for, sent = set(proxy_for or []), set(sent_keys or [])
+    out = []
+    for s in render.parse_sections(transcript):
+        if s["speaker"] not in proxy_for:
+            continue
+        s = {**s, "key": section_key(s)}
+        if s["key"] not in sent:
+            out.append(s)
+    return out
+
+
+def proxy_subject(topic: str, section: dict) -> str:
+    return f"[council: {topic}] ▸ {section['speaker']} — TURN {section['turn']} (대리)"

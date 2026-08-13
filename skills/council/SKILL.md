@@ -37,6 +37,7 @@ description: Run a kanban-based multi-profile meeting with council_start/status/
 - `council_start(..., relay="slack:#council")`이면 각 발언이 채널에도 올라온다. 발신은 각 프로필이 자기 자격으로 하고, 자격이 없는 프로필의 발언은 사회자가 대리한다.
 - 기본은 꺼짐이다. 회의 안건에 민감한 수치가 있으면 켜지 마라.
 - `relay_thread=False`면 스레드로 묶지 않고 채널에 평면 전송한다.
+- 사회자에게 자격이 없으면 `council_relay_flush`가 대리 전송을 맡는다(=`council run` 폴링마다 자동). 자연어로만 진행할 때는 이 도구를 직접 호출하라.
 - 전송 실패는 회의에 영향을 주지 않는다 — `council_status`의 `relay`로 상태를 확인한다.
 
 ## 조율·정리

@@ -50,7 +50,7 @@ def setup(sp) -> None:
     r.add_argument("--no-auto-resume", action="store_true", help="막힌 카드 자동 재개 비활성")
     r.add_argument("--no-collect", action="store_true", help="완주해도 수집하지 않음")
 
-    for name in ("status", "collect", "stop", "resume", "archive"):
+    for name in ("status", "collect", "stop", "resume", "archive", "relay"):
         p = sub.add_parser(name, help=f"회의 {name}")
         p.add_argument("slug")
         if name == "collect":
@@ -129,6 +129,7 @@ def _run(args) -> str:
         slug, status_fn=status_fn,
         resume_fn=lambda s: json.loads(tools.handle_resume({"slug": s})),
         stop_fn=lambda s: json.loads(tools.handle_stop({"slug": s, "reason": "폭주 안전장치"})),
+        relay_fn=lambda s: json.loads(tools.handle_relay_flush({"slug": s})),
         collect_fn=collect_fn, sleep_fn=time.sleep,
         interval=args.interval, max_ticks=max_ticks,
         auto_resume=not args.no_auto_resume)
@@ -182,6 +183,8 @@ def handle(args) -> None:
         out = tools.handle_stop({"slug": args.slug, "reason": args.reason})
     elif act == "resume":
         out = tools.handle_resume({"slug": args.slug})
+    elif act == "relay":
+        out = tools.handle_relay_flush({"slug": args.slug})
     elif act == "say":
         out = tools.handle_say({"slug": args.slug, "note": args.note})
     elif act == "decide":

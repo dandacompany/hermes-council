@@ -14,7 +14,8 @@ _HANDLERS = {"council_start": tools.handle_start, "council_status": tools.handle
              "council_collect": tools.handle_collect, "council_stop": tools.handle_stop,
              "council_resume": tools.handle_resume, "council_say": tools.handle_say,
              "council_archive": tools.handle_archive, "council_decide": tools.handle_decide,
-             "council_vote": tools.handle_vote}
+             "council_vote": tools.handle_vote,
+             "council_relay_flush": tools.handle_relay_flush}
 
 
 def register(ctx) -> None:
