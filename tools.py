@@ -153,7 +153,7 @@ def handle_status(args: dict, **kwargs) -> str:
                                  "status": c.get("status"), "title": c.get("title")} for c in cards],
                       "blocked": blocked, "card_count": len(cards), "card_cap": cap,
                       "runaway": runaway, "pending_decision": pending, "warnings": warnings,
-                      "hint": hint})
+                      "hint": hint, "relay": meta.get("relay")})
     except FileNotFoundError:
         return _dump({"error": f"unknown meeting slug: {args.get('slug')}"})
     except Exception as exc:

@@ -34,3 +34,9 @@ def test_cli_start_options_are_all_reachable_from_the_tool_schema():
     args = p.parse_args(["--topic", "T", "--panel", "mia", "--moderator", "sophie"])
     payload = cli._start_args(args)
     assert set(payload) <= set(schemas.START_SCHEMA["parameters"]["properties"])
+
+
+def test_start_exposes_relay_options():
+    props = schemas.START_SCHEMA["parameters"]["properties"]
+    assert props["relay"]["type"] == "string"
+    assert props["relay_thread"]["type"] == "boolean"

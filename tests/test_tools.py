@@ -380,3 +380,15 @@ def test_decide_survives_a_malformed_relay_meta(monkeypatch):
     out = json.loads(tools.handle_decide({"slug": slug, "choice": "A"}))
     assert "error" not in out
     assert out["decided"] == "A" and out["relayed"] is False
+
+
+def test_status_reports_relay_state(monkeypatch):
+    monkeypatch.setattr(board, "send_targets", _capable("sophie"))
+    monkeypatch.setattr(board, "send", lambda **kw: "1755.1")
+    start = json.loads(tools.handle_start(
+        {"topic": "T", "panel": ["mia"], "moderator": "sophie",
+         "relay": "slack:#council"}))
+    monkeypatch.setattr(board, "list_cards", lambda b, **k: [])
+    st = json.loads(tools.handle_status({"slug": start["slug"]}))
+    assert st["relay"]["target"] == "slack:#council:1755.1"
+    assert st["relay"]["proxy_for"] == ["mia"]
