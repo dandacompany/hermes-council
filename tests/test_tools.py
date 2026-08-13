@@ -362,3 +362,21 @@ def test_decide_survives_a_relay_failure(monkeypatch):
     monkeypatch.setattr(board, "send", boom)
     out = json.loads(tools.handle_decide({"slug": start["slug"], "choice": "A"}))
     assert out["decided"] == "A" and out["relayed"] is False
+
+
+def test_decide_survives_a_malformed_relay_meta(monkeypatch):
+    """meta['relay'] should only ever be None or a dict, but if something external
+    corrupts it (e.g. a manual edit leaves a bare string), handle_decide must not
+    let that turn a recorded decision into an error response."""
+    start = json.loads(tools.handle_start(
+        {"topic": "T", "panel": ["mia"], "moderator": "sophie"}))
+    slug = start["slug"]
+    meta_path = registry.meeting_dir(slug) / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta["relay"] = "slack:#council"          # malformed: string, not dict/None
+    meta_path.write_text(json.dumps(meta, ensure_ascii=False), encoding="utf-8")
+
+    monkeypatch.setattr(board, "list_cards", lambda b, **k: [])
+    out = json.loads(tools.handle_decide({"slug": slug, "choice": "A"}))
+    assert "error" not in out
+    assert out["decided"] == "A" and out["relayed"] is False
