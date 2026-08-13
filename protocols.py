@@ -16,6 +16,8 @@ PROTOCOL_RULES = """\
 3) 네 발언/판단을 회의록 끝에 append 한다(덮어쓰기 금지):
    ## [<프로필>] — TURN <n> (<speaker|moderator>)
    <내용>
+   ★발언은 회의에서 말하듯 써라 — 사람에게 건네는 말투로, 문장으로. 조항·개조식 문서투로 쓰지 마라
+   (근거·수치·조건은 빼지 말고 문장 안에 녹여라). 이 회의록이 그대로 채널에 중계된다.
    ★반드시 파일 편집 도구(write/edit/append_file 등 네게 있는 파일 도구)로 기록하라.
    python3·bash·shell 명령으로 파일을 쓰지 마라 — 백그라운드에서는 실행 승인이 지연되어 카드가 차단된다.
 4) 다음 카드를 만들어 공을 넘긴다:
@@ -26,6 +28,7 @@ PROTOCOL_RULES = """\
 6) assignee는 실존 프로필이어야 한다: 사회자 {moderator} / 패널 {panel}.
 
 ■ 카운팅 & 종료
+- SUMMARY·FINAL·DECISIONS는 발언이 아니라 산출 문서다 — 이 세 블록만은 지금처럼 간결한 문서체로 쓴다.
 - 패널 발언마다 TURN +1. 사회자 판단 카드는 TURN을 올리지 않는다.
 - allow_early_stop={early}. TURN이 CAP({cap})에 도달했거나(사회자가 수렴 판단하면, early_stop이 참일 때) 사회자는 다음 발언 카드를 만들지 말고, 회의록에 아래 두 블록을 함께 기록한 뒤 kanban_complete만 하고 체인을 끝낸다(created_cards 없음):
    ## [SUMMARY]

@@ -108,3 +108,17 @@ def test_hitl_rule_tells_the_moderator_to_announce_the_gate_on_the_channel():
     b = protocols.build_kickoff(mode="sequential", hitl=True,
                                 relay_block="\n■ 채널 중계\n- x\n", **BASE)
     assert "결정 요청" in b and "채널에도" in b
+
+
+def test_speech_asks_for_spoken_register_but_the_closing_documents_stay_formal():
+    """The transcript is what the channel shows, so speeches must read as speech.
+
+    SUMMARY/FINAL/DECISIONS are deliverables, not speech — they keep the document
+    register, so the split has to be stated in the protocol, not left to taste.
+    """
+    b = protocols.build_kickoff(mode="sequential", **BASE)
+    assert "말하듯" in b                       # speeches
+    assert "문서" in b                         # the closing blocks are documents
+    speech_at = b.index("말하듯")
+    closing_at = b.index("## [SUMMARY]")
+    assert speech_at < closing_at             # the register rule comes with the append rule

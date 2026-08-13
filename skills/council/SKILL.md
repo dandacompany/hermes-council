@@ -32,6 +32,11 @@ description: Run a kanban-based multi-profile meeting with council_start/status/
 - `council run`은 사람 게이트를 만나면 자동 재개하지 않고 멈춘다 → `decide` 후 `run --attach`로 이어간다.
 - 패널끼리 투표는 `--mode parallel` + "각자 A/B/C 투표하고 이유" 브리프로.
 
+## 말투와 관점
+
+- 발언은 말하듯 쓰게 되어 있다(조항식 문서투 금지). SUMMARY·FINAL·DECISIONS만 문서체다.
+- `roles`를 주지 않으면 각 프로필 `SOUL.md`에서 관점을 뽑아 채운다. 목소리를 더 가르려면 프로필의 SOUL 말투 절을 서로 다르게 쓴다.
+
 ## 채널 중계
 
 - `council_start(..., relay="slack:#council")`이면 각 발언이 채널에도 올라온다. 발신은 각 프로필이 자기 자격으로 하고, 자격이 없는 프로필의 발언은 사회자가 대리한다.
