@@ -68,9 +68,14 @@ def handle_start(args: dict, **kwargs) -> str:
                     warnings.append(
                         f"안내: 사회자({moderator})에게 메신저 자격이 없어, 사회자의 판단은 council이 "
                         "대리 전송합니다. 이 대리 전송은 `council run`이 붙어 있는 동안에만 이뤄집니다.")
-            if not dry_run and relay_thread and relay.can_open_thread(target) and moderator_capable:
+            # The header message anchors the thread, so it must go out as whoever
+            # council itself sends as — the first capable profile, which is the
+            # moderator whenever the moderator can send. Gating this on the
+            # moderator alone left meetings with an incapable moderator threadless,
+            # scattering every relayed speech as its own top-level message.
+            if not dry_run and relay_thread and relay.can_open_thread(target) and sender:
                 try:
-                    mid = board.send(profile=moderator,
+                    mid = board.send(profile=sender,
                                      target=relay.format_target(target),
                                      message=f"▶ 회의 시작: {topic}")
                     target["thread"] = mid

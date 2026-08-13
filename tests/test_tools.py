@@ -410,7 +410,11 @@ def test_start_relay_routes_on_card_holder_not_moderator_capability(monkeypatch)
     # rule is gated on the reader's own profile — sophie reads it, sees she is
     # not in the roster, and does not run it. It is no longer a doomed command.
     assert "hermes send" in relay_section
-    assert sent["n"] == 0                                     # header open needs a capable moderator
+    # The thread header goes out as the first capable profile, not the moderator —
+    # otherwise an incapable moderator would leave the meeting threadless and every
+    # relayed speech would land as its own top-level message.
+    assert sent["n"] == 1
+    assert "slack:#council:1755.1" in relay_section            # later posts join that thread
     assert registry.load_meta(out["slug"])["relay"]["proxy_for"] == []
     assert any("사회자" in w and "sophie" in w for w in out["warnings"])
 

@@ -45,18 +45,18 @@ hermes -p <profile> council --help       # CLI subcommands
 
 Handlers follow the Hermes contract `handle(args: dict, **kwargs) -> str` (JSON string).
 
-| Tool              | Purpose                                                                                                                                                                         |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `council_start`   | Seed a meeting (topic, panel, moderator, mode, max_turns, allow_early_stop, roles, brief, `hitl`, `relay`). Returns slug/board/kickoff id. `dry_run` plans without dispatching. |
-| `council_status`  | Card statuses, transcript section count, whether FINAL was reached, blocked-card recovery hint.                                                                                 |
-| `council_collect` | Split the transcript into `summary.md` / `report.md` / `transcript.export.md`. Optional `out_dir` copy.                                                                         |
-| `council_stop`    | Inject a card telling the moderator to synthesize now and stop.                                                                                                                 |
-| `council_resume`  | Recover a stalled meeting: unblock blocked cards with a file-tool reminder and re-dispatch.                                                                                     |
-| `council_say`     | Steer a live meeting without ending it — appends a directive the next moderator card reads.                                                                                     |
-| `council_archive` | Archive a finished meeting (reversible) and archive its board, to tidy the list.                                                                                                |
-| `council_decide`  | Resolve an open HITL decision gate — record the human's choice and resume the meeting.                                                                                          |
-| `council_relay_flush` | Post the speeches no participant can relay for itself (the moderator lacks credentials), exactly once each. Runs on every `council run` poll. |
-| `council_vote`    | Open a human vote/decision gate mid-meeting (question + options) for a person to resolve.                                                                                       |
+| Tool                  | Purpose                                                                                                                                                                         |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `council_start`       | Seed a meeting (topic, panel, moderator, mode, max_turns, allow_early_stop, roles, brief, `hitl`, `relay`). Returns slug/board/kickoff id. `dry_run` plans without dispatching. |
+| `council_status`      | Card statuses, transcript section count, whether FINAL was reached, blocked-card recovery hint.                                                                                 |
+| `council_collect`     | Split the transcript into `summary.md` / `report.md` / `transcript.export.md`. Optional `out_dir` copy.                                                                         |
+| `council_stop`        | Inject a card telling the moderator to synthesize now and stop.                                                                                                                 |
+| `council_resume`      | Recover a stalled meeting: unblock blocked cards with a file-tool reminder and re-dispatch.                                                                                     |
+| `council_say`         | Steer a live meeting without ending it — appends a directive the next moderator card reads.                                                                                     |
+| `council_archive`     | Archive a finished meeting (reversible) and archive its board, to tidy the list.                                                                                                |
+| `council_decide`      | Resolve an open HITL decision gate — record the human's choice and resume the meeting.                                                                                          |
+| `council_relay_flush` | Post the speeches no participant can relay for itself (the moderator lacks credentials), exactly once each. Runs on every `council run` poll.                                   |
+| `council_vote`        | Open a human vote/decision gate mid-meeting (question + options) for a person to resolve.                                                                                       |
 
 `council_start` and `council_status` also return `warnings` — preflight risk checks (no running gateway; a profile in `manual` approval mode, which can time out background workers) and transcript-lint findings (malformed headers, missing/duplicate SUMMARY/FINAL).
 

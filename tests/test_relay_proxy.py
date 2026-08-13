@@ -136,3 +136,29 @@ def test_drive_survives_a_relay_flush_error():
         resume_fn=lambda s: {}, collect_fn=lambda s: {"written": {}},
         relay_fn=boom, sleep_fn=lambda n: None, interval=1, max_ticks=3)
     assert result["outcome"] == "final"
+
+
+def test_thread_is_opened_by_the_sending_profile_not_the_moderator(tmp_path, monkeypatch):
+    """An incapable moderator must not cost the meeting its thread.
+
+    council's own sends go out as `sender` (the first capable profile), so the
+    header message that anchors the thread must be sent by that profile too —
+    otherwise every relayed speech lands as a separate top-level message.
+    """
+    monkeypatch.setenv("COUNCIL_HOME", str(tmp_path / ".council"))
+    monkeypatch.setattr(board, "list_profiles", lambda **k: ["sophie", "mia", "noah"])
+    monkeypatch.setattr(board, "create_board", lambda slug, **k: None)
+    monkeypatch.setattr(board, "create_card", lambda **k: "t_kick")
+    monkeypatch.setattr(board, "dispatch", lambda b, **k: {})
+    monkeypatch.setattr(board, "running_gateway_profiles", lambda **k: ["*"])
+    monkeypatch.setattr(board, "profile_approval_mode", lambda p, **k: "yolo")
+    monkeypatch.setattr(board, "send_targets", lambda p, **k: {
+        "platforms": {"slack": [{"name": "Dante"}] if p == "noah" else []}})
+    opened = []
+    monkeypatch.setattr(board, "send", lambda **kw: opened.append(kw) or "1755.9")
+    out = json.loads(tools.handle_start({"topic": "T", "panel": ["mia", "noah"],
+                                         "moderator": "sophie", "relay": "slack:D0B3"}))
+    assert opened and opened[0]["profile"] == "noah"          # not sophie, which cannot send
+    rl = registry.load_meta(out["slug"])["relay"]
+    assert rl["thread"] == "1755.9"
+    assert rl["target"] == "slack:D0B3:1755.9"                # every later post lands in it
