@@ -85,3 +85,15 @@ def test_remove_board_falls_back_to_legacy_hard_flags():
     board.remove_board("demo", hard=True, runner=runner)
     assert calls == [["kanban", "boards", "rm", "council-demo", "--delete"],
                      ["kanban", "boards", "rm", "council-demo", "--hard", "--yes"]]
+
+
+def test_send_targets_asks_the_profiles_own_directory():
+    calls = []
+
+    def runner(args):
+        calls.append(list(args))
+        return 'banner line\n{"platforms": {"slack": [{"name": "Dante"}]}}'
+
+    got = board.send_targets("sophie", runner=runner)
+    assert calls[0] == ["-p", "sophie", "send", "--list", "--json"]
+    assert got["platforms"]["slack"] == [{"name": "Dante"}]

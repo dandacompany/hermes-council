@@ -38,3 +38,22 @@ def can_open_thread(target: dict) -> bool:
     if target.get("explicit_thread"):
         return False                       # the user picked the thread; don't touch it
     return target.get("platform") in THREAD_OPENERS
+
+
+def relay_capable(profiles, platform: str, *, list_fn) -> set:
+    """Profiles that actually have a configured target on `platform`.
+
+    `list_fn(profile)` returns that profile's messaging directory (see
+    board.send_targets). A profile whose lookup raises, returns nothing, or has an
+    empty list for the platform is incapable — the caller then routes its speech
+    through the moderator instead of handing a worker a command that must fail.
+    """
+    capable = set()
+    for profile in profiles:
+        try:
+            directory = list_fn(profile) or {}
+            if (directory.get("platforms") or {}).get(platform):
+                capable.add(profile)
+        except Exception:
+            continue                       # incapable, not fatal
+    return capable

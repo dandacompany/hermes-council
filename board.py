@@ -133,3 +133,12 @@ def profile_approval_mode(profile: str, *, config_root=None) -> str:
             if m:
                 return m.group(1).strip().strip("'\"")
     return "unknown"
+
+
+def send_targets(profile: str, *, runner=_default_runner) -> dict:
+    """Messaging targets configured for one profile (`hermes -p X send --list --json`).
+
+    Returns {"platforms": {"slack": [...], ...}}. Callers treat any failure as
+    "this profile cannot send" — relaying must never be able to fail a meeting.
+    """
+    return _json_obj(runner(["-p", profile, "send", "--list", "--json"]))
