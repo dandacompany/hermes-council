@@ -307,3 +307,17 @@ def test_start_skips_thread_for_platforms_that_cannot_open_one(monkeypatch):
          "relay": "telegram:-100123"}))
     assert sent["n"] == 0                                   # no header message
     assert registry.load_meta(out["slug"])["relay"]["thread"] == ""
+
+
+def test_start_dry_run_never_sends_even_with_relay_on(monkeypatch):
+    sent = {"n": 0}
+    monkeypatch.setattr(board, "send_targets", _capable("sophie"))
+    monkeypatch.setattr(board, "send",
+                        lambda **kw: sent.__setitem__("n", sent["n"] + 1) or "1755.1")
+    out = json.loads(tools.handle_start(
+        {"topic": "T", "panel": ["mia"], "moderator": "sophie",
+         "relay": "slack:#council", "dry_run": True}))
+    assert sent["n"] == 0                                   # preview never sends a live message
+    assert out["dry_run"] is True
+    # dry_run has no side effects at all: no registry entry to carry relay metadata
+    assert registry.load_index() == []
