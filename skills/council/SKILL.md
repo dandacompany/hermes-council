@@ -32,6 +32,13 @@ description: Run a kanban-based multi-profile meeting with council_start/status/
 - `council run`은 사람 게이트를 만나면 자동 재개하지 않고 멈춘다 → `decide` 후 `run --attach`로 이어간다.
 - 패널끼리 투표는 `--mode parallel` + "각자 A/B/C 투표하고 이유" 브리프로.
 
+## 채널 중계
+
+- `council_start(..., relay="slack:#council")`이면 각 발언이 채널에도 올라온다. 발신은 각 프로필이 자기 자격으로 하고, 자격이 없는 프로필의 발언은 사회자가 대리한다.
+- 기본은 꺼짐이다. 회의 안건에 민감한 수치가 있으면 켜지 마라.
+- `relay_thread=False`면 스레드로 묶지 않고 채널에 평면 전송한다.
+- 전송 실패는 회의에 영향을 주지 않는다 — `council_status`의 `relay`로 상태를 확인한다.
+
 ## 조율·정리
 
 - **회의 중 지침** — 종료하지 않고 방향을 틀려면 `council_say(slug, note)`. 다음 사회자 카드가 그 지침을 읽고 반영한다.

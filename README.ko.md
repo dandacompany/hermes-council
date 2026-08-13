@@ -46,12 +46,12 @@ hermes council --help
 
 핸들러는 Hermes 계약 `handle(args: dict, **kwargs) -> str`(JSON 문자열)를 따른다.
 
-| 도구              | 역할                                                                                                                                                            |
-| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `council_start`   | 회의 씨앗 생성(topic, panel, moderator, mode, max_turns, allow_early_stop, roles, brief, `hitl`). slug/board/kickoff id 반환. `dry_run`은 디스패치 없이 계획만. |
-| `council_status`  | 카드 상태, 회의록 섹션 수, FINAL 도달 여부, blocked 카드 복구 힌트.                                                                                             |
-| `council_collect` | 회의록을 `summary.md` / `report.md` / `transcript.export.md`로 분리. `out_dir` 지정 시 복사.                                                                    |
-| `council_stop`    | 사회자에게 즉시 종합·종료를 지시하는 카드 주입.                                                                                                                 |
+| 도구              | 역할                                                                                                                                                                     |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `council_start`   | 회의 씨앗 생성(topic, panel, moderator, mode, max_turns, allow_early_stop, roles, brief, `hitl`, `relay`). slug/board/kickoff id 반환. `dry_run`은 디스패치 없이 계획만. |
+| `council_status`  | 카드 상태, 회의록 섹션 수, FINAL 도달 여부, blocked 카드 복구 힌트.                                                                                                      |
+| `council_collect` | 회의록을 `summary.md` / `report.md` / `transcript.export.md`로 분리. `out_dir` 지정 시 복사.                                                                             |
+| `council_stop`    | 사회자에게 즉시 종합·종료를 지시하는 카드 주입.                                                                                                                          |
 
 `council_start`·`council_status`는 `warnings`도 반환한다 — 프리플라이트(게이트웨이 미실행, manual 승인 모드로 인한 백그라운드 타임아웃 위험)와 회의록 린트(헤더 형식 오류, SUMMARY/FINAL 누락·중복). 막힌 회의는 `council_resume(slug)`로 복구한다.
 
@@ -69,6 +69,7 @@ hermes council --help
 - **재부착** — `council run --attach <slug>`는 진행 중(또는 오케스트레이터가 죽은) 회의에 재부착해 완주 대기·수집한다. 회의는 게이트웨이가 카드를 굴리므로 `run` 프로세스가 죽어도 살아남는다.
 - **산출물 포맷** — `council collect --format md|json|html|all`은 구조화 `<slug>.json`(파싱된 발언+파트)과 자립형 `<slug>.html`도 생성한다.
 - **HITL(사람 개입)** — `--hitl`은 사회자가 종료 전 `결정 요청` 게이트를 열고 대기하게 한다. `council status`가 `pending_decision`으로 표면화, `council decide <slug> "<선택>"`으로 응답·재개. `council vote <slug> "<질문>" A B`는 선택지 게이트를 연다. `council run`은 사람 게이트에서 자동 재개하지 않고 멈춘다. (패널끼리 투표는 `--mode parallel` + "A/B/C 투표" 브리프로.)
+- **채널 중계** — `--relay slack:#council`을 주면 각 발언자가 회의가 도는 동안 자기 자격으로 채널에 자기 발언을 올린다. 메신저 자격이 없는 패널은 사회자가 `▸ <이름> — TURN n (대리)` 헤더를 붙여 대신 보낸다. 플랫폼이 허용하면 한 스레드로 묶는다(현재 Slack. 텔레그램 토픽·디스코드 스레드는 대상의 3번째 세그먼트를 직접 주면 된다). **기본은 꺼짐 — 회의 내용이 채널에 그대로 나가므로 켜는 것은 의도적 행위여야 한다.** 중계 실패는 회의를 멈추지 않고 평면 전송 또는 무전송으로 열화된다.
 
 ### 원샷 실행
 

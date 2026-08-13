@@ -45,17 +45,17 @@ hermes -p <profile> council --help       # CLI subcommands
 
 Handlers follow the Hermes contract `handle(args: dict, **kwargs) -> str` (JSON string).
 
-| Tool              | Purpose                                                                                                                                                                |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `council_start`   | Seed a meeting (topic, panel, moderator, mode, max_turns, allow_early_stop, roles, brief, `hitl`). Returns slug/board/kickoff id. `dry_run` plans without dispatching. |
-| `council_status`  | Card statuses, transcript section count, whether FINAL was reached, blocked-card recovery hint.                                                                        |
-| `council_collect` | Split the transcript into `summary.md` / `report.md` / `transcript.export.md`. Optional `out_dir` copy.                                                                |
-| `council_stop`    | Inject a card telling the moderator to synthesize now and stop.                                                                                                        |
-| `council_resume`  | Recover a stalled meeting: unblock blocked cards with a file-tool reminder and re-dispatch.                                                                            |
-| `council_say`     | Steer a live meeting without ending it — appends a directive the next moderator card reads.                                                                            |
-| `council_archive` | Archive a finished meeting (reversible) and archive its board, to tidy the list.                                                                                       |
-| `council_decide`  | Resolve an open HITL decision gate — record the human's choice and resume the meeting.                                                                                 |
-| `council_vote`    | Open a human vote/decision gate mid-meeting (question + options) for a person to resolve.                                                                              |
+| Tool              | Purpose                                                                                                                                                                         |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `council_start`   | Seed a meeting (topic, panel, moderator, mode, max_turns, allow_early_stop, roles, brief, `hitl`, `relay`). Returns slug/board/kickoff id. `dry_run` plans without dispatching. |
+| `council_status`  | Card statuses, transcript section count, whether FINAL was reached, blocked-card recovery hint.                                                                                 |
+| `council_collect` | Split the transcript into `summary.md` / `report.md` / `transcript.export.md`. Optional `out_dir` copy.                                                                         |
+| `council_stop`    | Inject a card telling the moderator to synthesize now and stop.                                                                                                                 |
+| `council_resume`  | Recover a stalled meeting: unblock blocked cards with a file-tool reminder and re-dispatch.                                                                                     |
+| `council_say`     | Steer a live meeting without ending it — appends a directive the next moderator card reads.                                                                                     |
+| `council_archive` | Archive a finished meeting (reversible) and archive its board, to tidy the list.                                                                                                |
+| `council_decide`  | Resolve an open HITL decision gate — record the human's choice and resume the meeting.                                                                                          |
+| `council_vote`    | Open a human vote/decision gate mid-meeting (question + options) for a person to resolve.                                                                                       |
 
 `council_start` and `council_status` also return `warnings` — preflight risk checks (no running gateway; a profile in `manual` approval mode, which can time out background workers) and transcript-lint findings (malformed headers, missing/duplicate SUMMARY/FINAL).
 
@@ -73,6 +73,7 @@ Also registered: the `/council` slash command (list meetings / show one by slug)
 - **Re-attach** — `council run --attach <slug>` re-attaches to a running (or orchestrator-crashed) meeting, polls to completion, and collects — the meeting survives the `run` process dying because the gateway drives the cards.
 - **Output formats** — `council collect --format md|json|html|all` also emits a structured `<slug>.json` (parsed turns + parts) and a self-contained `<slug>.html` page.
 - **Human-in-the-loop** — `--hitl` makes the moderator open a `결정 요청` gate and block before finalizing; `council status` surfaces it as `pending_decision`, and `council decide <slug> "<choice>"` records the answer and resumes. `council vote <slug> "<question>" A B` opens a gate with options. `council run` pauses (never auto-resumes) on a human gate. (Panel-vs-panel voting: just run `--mode parallel` with a "vote A/B/C" brief.)
+- **Channel relay** — `--relay slack:#council` makes each speaker post its own speech to the channel under its own identity as the meeting runs; panelists with no messaging credentials are proxied by the moderator with a `▸ <name> — TURN n (대리)` header. Speeches are grouped into one thread where the platform allows it (Slack today; Telegram topics and Discord threads work if you pass the third target segment yourself). **Off by default — the meeting content goes to the channel verbatim, so turn it on deliberately.** A relay failure never stops a meeting: it degrades to flat posts, or to no posts at all.
 
 ### One-shot run
 
