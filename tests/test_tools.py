@@ -397,12 +397,53 @@ def test_start_relay_routes_on_card_holder_not_moderator_capability(monkeypatch)
         {"topic": "T", "panel": ["mia", "noah"], "moderator": "sophie",
          "relay": "slack:#council"}))
     assert "error" not in out
-    body = bodies["body"]
-    assert "hermes send" in body                             # noah's send-your-own-speech rule
-    assert "대리" not in body                                  # sophie (incapable) can't proxy
+    body = bodies["body"]                                     # sophie's own kickoff card
+    # Isolate the relay block itself (it ends right before the '==' protocol
+    # header) so the assertions below don't trip on 'sophie' elsewhere in the
+    # kickoff body (e.g. "사회자: sophie").
+    start = body.index("■ 채널 중계")
+    relay_section = body[start:body.index("==", start)]
+    assert "noah" in relay_section                             # noah is in the send roster
+    assert "sophie" not in relay_section                       # sophie (incapable) is not
+    assert "대리" not in relay_section                          # sophie (incapable) can't proxy
+    # The block is embedded unconditionally in sophie's own card, but the send
+    # rule is gated on the reader's own profile — sophie reads it, sees she is
+    # not in the roster, and does not run it. It is no longer a doomed command.
+    assert "hermes send" in relay_section
     assert sent["n"] == 0                                     # header open needs a capable moderator
     assert registry.load_meta(out["slug"])["relay"]["proxy_for"] == []
     assert any("사회자" in w and "sophie" in w for w in out["warnings"])
+
+
+def test_start_relay_block_propagates_unconditionally_in_kickoff(monkeypatch):
+    """Regression for the silent-death bug: the kickoff body (the moderator's own
+    card when the moderator is incapable) must instruct the next card's author to
+    copy the whole relay section forward — with no instruction to withhold it
+    from any particular profile's card. Otherwise the very next card the
+    moderator creates loses the section and relay dies after one turn."""
+    bodies = {}
+    monkeypatch.setattr(board, "send_targets", _capable("noah"))
+    monkeypatch.setattr(board, "send", lambda **kw: "1755.1")
+    monkeypatch.setattr(board, "create_card",
+                        lambda **kw: bodies.update(kw) or "t_kick")
+    out = json.loads(tools.handle_start(
+        {"topic": "T", "panel": ["mia", "noah"], "moderator": "sophie",
+         "relay": "slack:#council"}))
+    assert "error" not in out
+    body = bodies["body"]
+    assert "그대로 복사한다" in body
+    assert "복사하지 마라" not in body
+    assert "카드에는" not in body
+
+
+def test_start_relay_block_absent_when_nobody_can_send(monkeypatch):
+    monkeypatch.setattr(board, "send_targets", _capable())    # nobody
+    out = json.loads(tools.handle_start(
+        {"topic": "T", "panel": ["mia"], "moderator": "sophie",
+         "relay": "slack:#council", "dry_run": True}))
+    assert "error" not in out
+    assert out["relay_block"] == ""
+    assert "■ 채널 중계" not in out["kickoff_body_preview"]
 
 
 def test_status_reports_relay_state(monkeypatch):

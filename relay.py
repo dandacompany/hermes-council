@@ -59,47 +59,51 @@ def relay_capable(profiles, platform: str, *, list_fn) -> set:
     return capable
 
 
-def build_relay_block(*, target: dict, topic: str, speaker_sends: bool,
-                      proxy_for, exclude_for=None) -> str:
+def build_relay_block(*, target: dict, topic: str, capable, proxy_for=None) -> str:
     """The '■ 채널 중계' section embedded in a card body.
 
-    Two audiences share one block because one card body is copied forward to the
-    next: the speaker rule tells whoever holds this card to send its own speech
-    (`speaker_sends` — true whenever *someone* in the meeting can send, not just
-    the moderator), and the exclusion list tells the card's author which cards
-    must NOT receive that rule (any profile with no messaging credentials,
-    including the moderator itself when it lacks them — `exclude_for`; defaults
-    to `proxy_for` for callers that don't distinguish the two).
+    One card body is copied forward to the next, so the block must survive that
+    copy unchanged — it is the only carrier a relay chain has, and every second
+    card belongs to the moderator, who is the chain's relay. The block therefore
+    states its own roster (`capable` — every profile that may send, in meeting
+    order) instead of leaning on the card's provenance: a worker checks whether
+    its OWN profile is in that roster before running the send command, so the
+    same instruction is safe to hand to a capable panelist and an incapable
+    moderator alike. Propagation is unconditional — "copy this into the next
+    card" — never "copy it to everyone except X"; nobody is ever excluded from
+    carrying the block forward, only from the send command inside it.
 
     `proxy_for` (panelists the moderator proxies for) is only meaningful when the
     moderator itself can send — a moderator with no credentials cannot proxy
-    anyone, so callers should pass an empty `proxy_for` in that case and rely on
-    `exclude_for` to keep the doomed send command out of every incapable card.
+    anyone, so callers should pass an empty `proxy_for` in that case (the
+    moderator not being in `capable` already keeps it out of the self-send rule).
+
+    Returns "" when `capable` is empty — nobody can send, so nothing belongs in
+    the card.
     """
+    capable = list(capable or [])
     proxy_for = list(proxy_for or [])
-    exclude_for = list(exclude_for) if exclude_for is not None else list(proxy_for)
-    if not speaker_sends and not exclude_for:
+    if not capable:
         return ""
     where = format_target(target)
     subject = f"[council: {topic}]"
+    names = ", ".join(capable)
     out = ["\n■ 채널 중계"]
-    if speaker_sends:
-        out.append(
-            "- 회의록에 append한 직후, 같은 내용을 채널로도 보낸다:\n"
-            f'  hermes send --to {where} --subject "{subject} ▸ <네 프로필> — TURN <n>" '
-            '--quiet "<네 발언 전문>"')
+    out.append(
+        f"- 발신 가능한 프로필: {names}. 네 프로필이 이 목록에 있으면, 회의록에 append한 직후 "
+        "같은 내용을 채널로도 보낸다:\n"
+        f'  hermes send --to {where} --subject "{subject} ▸ <네 프로필> — TURN <n>" '
+        '--quiet "<네 발언 전문>"\n'
+        "  목록에 없으면 이 명령을 실행하지 않는다.")
     if proxy_for:
-        names = ", ".join(proxy_for)
+        names2 = ", ".join(proxy_for)
         out.append(
-            f"- 다음 패널은 메신저 자격이 없다: {names}. 이들의 발언은 사회자가 대신 보낸다.\n"
+            f"- 다음 패널은 메신저 자격이 없다: {names2}. 이들의 발언은 사회자가 대신 보낸다.\n"
             "  네가 사회자라면, 네 차례 직전 라운드에서 이들이 회의록에 남긴 발언을 각각 이렇게 보낸다:\n"
             f'  hermes send --to {where} --subject "{subject} ▸ <그 패널> — TURN <n> (대리)" '
             '--quiet "<그 패널의 발언 전문>"\n'
             "  직전 라운드 것만 보낸다(그 이전 것은 이미 보냈다).")
-    if exclude_for:
-        names = ", ".join(exclude_for)
-        out.append(
-            f"- 다음 카드를 만들 때 이 '■ 채널 중계' 절을 그대로 복사하되, {names}의 카드에는 "
-            "복사하지 마라(보낼 수 없는 명령을 주지 않는다).")
+    out.append("- 다음 카드를 만들 때 이 '■ 채널 중계' 절을 그대로 복사한다(누구의 카드든 예외 없이 — "
+                "이 절이 회의 끝까지 이어지게 한다).")
     out.append("- 전송 실패해도 무시하고 다음 단계로 진행한다. 회의는 절대 멈추지 않는다.")
     return "\n".join(out) + "\n"

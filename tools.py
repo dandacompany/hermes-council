@@ -51,7 +51,6 @@ def handle_start(args: dict, **kwargs) -> str:
             capable = relay.relay_capable([moderator, *panel], target["platform"],
                                           list_fn=board.send_targets)
             moderator_capable = moderator in capable
-            incapable = [p for p in [moderator, *panel] if p not in capable]
             if not capable:
                 warnings.append(
                     "경고: 중계를 켰으나 발신 가능한 프로필이 없습니다 — 회의는 정상 진행되고 "
@@ -77,11 +76,11 @@ def handle_start(args: dict, **kwargs) -> str:
                     pass                    # degrade to flat; the meeting still runs
             # Proxying requires a moderator who can actually send.
             proxy_for = [p for p in panel if p not in capable] if moderator_capable else []
+            capable_ordered = [p for p in [moderator, *panel] if p in capable]
             relay_meta = {"target": relay.format_target(target),
                           "thread": target["thread"], "proxy_for": proxy_for}
             relay_block = relay.build_relay_block(
-                target=target, topic=topic,
-                speaker_sends=bool(capable), proxy_for=proxy_for, exclude_for=incapable)
+                target=target, topic=topic, capable=capable_ordered, proxy_for=proxy_for)
 
         taken = {r["slug"] for r in registry.load_index()}
         # Date-prefixed slug for readable, sortable meeting ids (unless explicit slug given).

@@ -58,7 +58,7 @@ TARGET = {"platform": "slack", "chat": "#council", "thread": "1755.1",
 
 def test_relay_block_tells_a_capable_speaker_to_send_its_own_speech():
     block = relay.build_relay_block(target=TARGET, topic="커피머신 교체",
-                                    speaker_sends=True, proxy_for=[])
+                                    capable=["noah"], proxy_for=[])
     assert "hermes send --to slack:#council:1755.1" in block
     assert "[council: 커피머신 교체]" in block
     assert "실패해도 무시" in block
@@ -67,27 +67,36 @@ def test_relay_block_tells_a_capable_speaker_to_send_its_own_speech():
 
 def test_relay_block_asks_the_moderator_to_proxy_for_incapable_panelists():
     block = relay.build_relay_block(target=TARGET, topic="T",
-                                    speaker_sends=True, proxy_for=["mia", "iris"])
+                                    capable=["sophie"], proxy_for=["mia", "iris"])
     assert "mia, iris" in block
     assert "대리" in block
-    # The moderator creates the panel cards; it must not hand a send command to a
-    # profile that cannot send.
-    assert "복사하지 마라" in block
 
 
 def test_relay_block_is_empty_when_nobody_can_send():
     assert relay.build_relay_block(target=TARGET, topic="T",
-                                   speaker_sends=False, proxy_for=[]) == ""
+                                   capable=[], proxy_for=[]) == ""
 
 
 def test_relay_block_when_moderator_incapable_but_a_panelist_is_not():
     """An incapable moderator cannot proxy anyone — no proxy paragraph — but the
-    self-send rule still applies for whoever holds a capable card, and every
-    incapable profile (moderator included) must be named in the copy-exclusion
-    list so it never receives a doomed send command."""
+    self-send rule still applies, gated on the reader's own profile: the roster
+    names only the capable panelist, so the incapable moderator reading the same
+    block in its own card recognizes it is not in the roster and does not send."""
     block = relay.build_relay_block(target=TARGET, topic="T",
-                                    speaker_sends=True, proxy_for=[],
-                                    exclude_for=["sophie", "mia"])
+                                    capable=["noah"], proxy_for=[])
     assert "hermes send" in block
-    assert "대리" not in block                 # no proxying without a capable moderator
-    assert "복사하지 마라" in block and "sophie, mia" in block
+    assert "노아" not in block                  # sanity: no stray literal name
+    assert "sophie" not in block                # sophie is not in the roster
+    assert "noah" in block                      # noah is
+    assert "대리" not in block                  # no proxying without a capable moderator
+
+
+def test_relay_block_propagation_is_unconditional_and_never_names_an_exclusion():
+    """Every card must carry the block forward, including the moderator's —
+    the moderator is the chain's relay every second turn. The instruction must
+    never single out a profile to withhold the section from."""
+    block = relay.build_relay_block(target=TARGET, topic="T",
+                                    capable=["noah"], proxy_for=[])
+    assert "그대로 복사한다" in block
+    assert "복사하지 마라" not in block
+    assert "카드에는" not in block
