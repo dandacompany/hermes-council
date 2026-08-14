@@ -151,8 +151,15 @@ def handle_start(args: dict, **kwargs) -> str:
 
         if dry_run:
             # No side effects: don't create the registry entry or the board.
+            # Echo the settings a person checks on screen. The turn cap and mode
+            # live past the 600-char preview cut, so without these fields a dry
+            # run cannot answer "did it understand three turns?" — which is most
+            # of what a dry run is for.
             return _dump({"dry_run": True, "slug": slug, "board": board_slug,
                           "kickoff_assignee": moderator, "warnings": warnings,
+                          "moderator": moderator, "panel": panel, "mode": mode,
+                          "max_turns": max_turns, "allow_early_stop": allow_early_stop,
+                          "hitl": hitl,
                           "roles": roles, "has_brief": bool(brief_text),
                           "kickoff_body_preview": body_text[:600],
                           "relay_block": relay_block})

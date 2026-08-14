@@ -551,3 +551,15 @@ def test_slash_council_prose_that_looks_like_a_slug_still_shows_status(monkeypat
 def test_slash_council_unknown_single_word_is_not_mistaken_for_a_request():
     out = tools.handle_council_command("nosuchmeeting")
     assert "unknown meeting slug" in out             # a typo'd slug must say so
+
+
+def test_dry_run_surfaces_the_settings_a_person_checks_on_screen():
+    """A dry run is what someone looks at to confirm the meeting was understood.
+    The turn cap lives deep in the card body, past the 600-char preview, so it has
+    to be returned as a field or it cannot be checked without opening the card."""
+    out = json.loads(tools.handle_start({
+        "topic": "투자위원회", "panel": ["mia", "noah"], "moderator": "sophie",
+        "mode": "sequential", "max_turns": 3, "dry_run": True}))
+    assert out["max_turns"] == 3
+    assert out["mode"] == "sequential"
+    assert out["panel"] == ["mia", "noah"] and out["moderator"] == "sophie"
