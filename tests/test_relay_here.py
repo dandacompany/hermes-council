@@ -107,3 +107,35 @@ def test_a_conversation_the_moderator_cannot_send_on_is_not_used(env):
     out = json.loads(tools.handle_start({"topic": "T", "panel": ["mia"], "moderator": "sophie"}))
     rl = registry.load_meta(out["slug"])["relay"]
     assert rl is None or not rl["target"].startswith("telegram")
+
+
+def test_a_thread_id_equal_to_the_message_id_is_not_a_thread(env):
+    """Slack gives every top-level message a thread id equal to its own ts.
+
+    The inbound handler sets it as a session-keying fallback (slack adapter:
+    "when thread_id == reply_to the 'thread' is synthetic"). Treating it as a
+    real thread pins the whole meeting inside an ephemeral thread spawned around
+    the one message that asked for it — not where the conversation is.
+    """
+    _session(env, HERMES_SESSION_PLATFORM="slack", HERMES_SESSION_CHAT_ID="C0B8",
+             HERMES_SESSION_THREAD_ID="1786681649.684969",
+             HERMES_SESSION_MESSAGE_ID="1786681649.684969")
+    assert relay.current_conversation() == "slack:C0B8"      # channel, no thread
+
+
+def test_a_real_thread_survives_the_synthetic_check(env):
+    _session(env, HERMES_SESSION_PLATFORM="slack", HERMES_SESSION_CHAT_ID="C0B8",
+             HERMES_SESSION_THREAD_ID="1786600000.111111",
+             HERMES_SESSION_MESSAGE_ID="1786681649.684969")
+    assert relay.current_conversation() == "slack:C0B8:1786600000.111111"
+
+
+def test_start_opens_its_own_thread_when_the_asking_thread_was_synthetic(env):
+    """Dropping the synthetic thread must not cost the meeting a thread — council
+    still anchors one with its own header message, in the right channel."""
+    _session(env, HERMES_SESSION_PLATFORM="slack", HERMES_SESSION_CHAT_ID="C0B8",
+             HERMES_SESSION_THREAD_ID="1786681649.684969",
+             HERMES_SESSION_MESSAGE_ID="1786681649.684969")
+    out = json.loads(tools.handle_start({"topic": "T", "panel": ["mia"], "moderator": "sophie"}))
+    rl = registry.load_meta(out["slug"])["relay"]
+    assert rl["target"] == "slack:C0B8:1755.new"

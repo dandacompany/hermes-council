@@ -217,4 +217,11 @@ def current_conversation() -> str:
     if not platform or not chat:
         return ""
     thread = _session_env("HERMES_SESSION_THREAD_ID").strip()
+    # Slack stamps every top-level message with a thread id equal to its own ts,
+    # as a session key rather than a place ("when thread_id == reply_to the
+    # 'thread' is synthetic" — plugins/platforms/slack/adapter.py). Joining it
+    # would bury the meeting in an ephemeral thread around the single message
+    # that asked for it, instead of the conversation the asker is watching.
+    if thread and thread == _session_env("HERMES_SESSION_MESSAGE_ID").strip():
+        thread = ""
     return f"{platform}:{chat}:{thread}" if thread else f"{platform}:{chat}"
