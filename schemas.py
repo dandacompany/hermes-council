@@ -25,7 +25,7 @@ START_SCHEMA = {
             "brief": {"type": "string", "description": "Agenda/context: inline text or a path to a file. Saved to <slug>/brief.md; workers read it before speaking."},
             "roles": {"type": "object", "description": "Per-panelist perspective hints, e.g. {\"mia\": \"market view\", \"noah\": \"ops view\"}."},
             "hitl": {"type": "boolean",
-                     "description": "Ask the human before the moderator finalizes (HITL gate). The moderator opens a '결정 요청' and blocks; resolve it with council_decide (default false)."},
+                     "description": "Pause for the human before the moderator writes its conclusion (HITL gate). Set true whenever the request asks to be consulted, approved, or asked before the meeting decides or finishes — e.g. '결론 내기 전에 물어봐', '끝내기 전에 확인받아', '내 승인 받고 진행해', 'ask me before you decide', 'check with me first'. The moderator then opens a '결정 요청' and blocks until council_decide answers (default false)."},
             "relay": {"description": "Where to relay each speech as the meeting runs. ON BY DEFAULT — omit this and speeches go to the channel the moderator can send on (its home channel), so meeting content reaches that channel verbatim. Pass a target string to choose one, using `hermes send --to` syntax: 'slack', 'slack:#council', 'telegram:-1001234567890:17585'. Pass false to turn relaying off."},
             "relay_thread": {"type": "boolean",
                              "description": "Group the relayed speeches under one thread where the platform allows it (Slack today); flat channel posts otherwise (default true)."},
