@@ -69,14 +69,28 @@ def _header(topic, mode, panel, moderator, max_turns, allow_early_stop, transcri
             + extra + "\n" + rules)
 
 
+# Split in two on purpose. Rule 4 tells every worker to copy the protocol into
+# the next card, so anything in the header reaches the panel as well. The gate
+# instruction ("block and wait for a person") must not: `council decide` resolves
+# the moderator's gate, so a panelist that blocks stops a card nobody is waiting
+# for and the meeting dies quietly. Panels bring opinions; the moderator holds
+# the gate.
 _HITL_RULE = (
     "\n■ HITL(사람 개입) 모드\n"
-    "- 이 회의는 HITL 모드다. FINAL을 쓰기 '직전'에 반드시 회의록에 다음 게이트를 남기고 대기하라:\n"
+    "- 이 회의는 HITL 모드다. 사람에게 묻고 회의를 멈추는 것은 **사회자만** 한다.\n"
+    "- 패널은 사람 판단이 필요하다고 보면 그 사실을 자기 발언에 적기만 한다 — "
+    "kanban_block을 부르거나 '결정 요청'을 쓰지 마라(아무도 그 카드를 기다리지 않는다).\n")
+
+# Moderator-only; goes in the turn block, which is not copied to panel cards.
+_HITL_GATE = (
+    "\n■ 종료 전 사람 결정 (사회자 전용)\n"
+    "- FINAL을 쓰기 '직전'에 반드시 회의록에 다음 게이트를 남기고 대기하라:\n"
     "  ## [결정 요청] <시각>\n  질문: <사람에게 물을 핵심 결정>\n  선택지: <A / B / ...>(있으면)\n"
     "  그런 다음 SUMMARY/FINAL을 쓰지 말고 kanban_block(reason='awaiting-human: <질문>')로 멈춘다.\n"
     "- 채널 중계가 켜져 있으면 이 '결정 요청'을 채널에도 같은 방식으로 보낸 뒤 멈춘다.\n"
     "- 사람이 회의록에 '## [사용자 결정]'을 남기고 카드를 unblock하면, 그 결정을 반영해 "
-    "SUMMARY+FINAL(+DECISIONS)을 작성하고 종료한다.\n")
+    "SUMMARY+FINAL(+DECISIONS)을 작성하고 종료한다.\n"
+    "- 다음 카드를 만들 때 이 절은 복사하지 마라 — 사회자 차례에만 해당한다.\n")
 
 
 def build_kickoff(*, mode, topic, slug, moderator, panel, max_turns,
@@ -116,6 +130,8 @@ def build_kickoff(*, mode, topic, slug, moderator, panel, max_turns,
             "assignee=\"<첫 발언자>\", body=<프로토콜+진행상태(TURN 0)+SPEAKER 지시(이번 발언=TURN 1)>).\n"
             "4) kanban_complete(summary=\"킥오프\", created_cards=[새 카드 id])."
         ).format(cap=max_turns, mod=moderator, slug=slug)
+    if hitl:
+        turn_block += _HITL_GATE
     return head + "\n\n" + turn_block
 
 
