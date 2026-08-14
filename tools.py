@@ -64,11 +64,18 @@ def handle_start(args: dict, **kwargs) -> str:
         if not relay_off and relay.opted_out(moderator):
             relay_off_reason = "profile_opted_out"
         elif not relay_off and not relay_spec:
-            # No target named: relay where the moderator can actually speak. An
-            # empty result is the common case (no messenger configured at all)
-            # and means "no relay" — silently, since nothing was asked for.
-            auto = relay.auto_platform(moderator, list_fn=board.send_targets)
-            relay_spec = auto                    # bare platform → Hermes routes to its home channel
+            # Prefer the conversation this request arrived on — someone asking for
+            # a meeting in a thread means "show it to me here", and making them
+            # name a channel pushes our plumbing into their prompt. Only use it if
+            # the moderator can actually send on that platform.
+            here = relay.current_conversation()
+            if here and relay.parse_target(here)["platform"] in (
+                    (board.send_targets(moderator) or {}).get("platforms") or {}):
+                relay_spec = here
+            else:
+                # No conversation (CLI, cron) — fall back to wherever the moderator
+                # can speak. Empty means no messenger at all, i.e. no relay.
+                relay_spec = relay.auto_platform(moderator, list_fn=board.send_targets)
         if relay_spec:
             target = relay.parse_target(relay_spec)
             capable = relay.relay_capable([moderator, *panel], target["platform"],

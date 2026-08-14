@@ -183,3 +183,38 @@ def opted_out(moderator: str) -> bool:
         return (cfg.get("council") or {}).get("relay") is False
     except Exception:
         return False                       # unreadable config is not an opt-out
+
+
+def _session_env(name: str, default: str = "") -> str:
+    """Read a gateway session context var, or "" when there is no gateway.
+
+    The gateway sets these per request (task-local, so concurrent messages do not
+    clobber each other) and falls back to os.environ for CLI/cron. Wrapped here so
+    tests can stand in for a conversation, and so a Hermes without this module
+    simply means "no conversation".
+    """
+    try:
+        from gateway.session_context import get_session_env
+        return get_session_env(name, default) or default
+    except Exception:
+        import os
+        return os.environ.get(name, default) or default
+
+
+def current_conversation() -> str:
+    """Where the request came from, as a `hermes send --to` target, or "".
+
+    Someone who asks for a meeting in a Slack thread means "show it to me here",
+    and making them name the channel pushes our plumbing into their prompt. The
+    gateway already knows, so read it rather than ask.
+
+    A chat id is required: a thread id alone cannot be delivered to. An agent that
+    knew only the thread ts passed `slack:<ts>` and every send failed, which is the
+    failure this exists to prevent.
+    """
+    platform = _session_env("HERMES_SESSION_PLATFORM").strip()
+    chat = _session_env("HERMES_SESSION_CHAT_ID").strip()
+    if not platform or not chat:
+        return ""
+    thread = _session_env("HERMES_SESSION_THREAD_ID").strip()
+    return f"{platform}:{chat}:{thread}" if thread else f"{platform}:{chat}"
