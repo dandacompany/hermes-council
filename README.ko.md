@@ -61,7 +61,7 @@ hermes council --help
 
 `council_start`·`council_status`는 `warnings`도 반환한다 — 프리플라이트(게이트웨이 미실행, manual 승인 모드로 인한 백그라운드 타임아웃 위험)와 회의록 린트(헤더 형식 오류, SUMMARY/FINAL 누락·중복). 막힌 회의는 `council_resume(slug)`로 복구한다.
 
-이 외에 `/council` 슬래시 커맨드(목록/상태), `hermes council {start|run|status|list|collect|stop|resume|doctor}` CLI, 번들 `council` 스킬(운영 플레이북)이 등록된다.
+이 외에 `hermes council {start|run|status|list|collect|stop|resume|gc|doctor}` CLI와 번들 `council` 스킬이 등록된다. 슬래시 `/council <요청>`은 그 스킬로 연결된다 — 플러그인 슬래시 커맨드로는 일부러 등록하지 않았다. 플러그인 커맨드는 반환값이 곧 사용자 응답이라 핸들러가 에이전트에게 일을 넘길 수 없고, 실제로 슬랙에서 지시문만 출력되고 회의가 열리지 않았다.
 
 ### 더 풍부한 회의
 
@@ -112,6 +112,12 @@ hermes council run --topic "Q3 로드맵" --panel "mia,noah" --moderator sophie 
 ## Attribution
 
 Hermes Agent 칸반 시스템(`kanban_create` fan-out + 게이트웨이 디스패처) 위에 구축. MIT 라이선스 — `LICENSE` 참조.
+
+## 지운 보드가 빈 채로 되살아난다
+
+`council rm`은 보드를 지우고 그 삭제는 실제로 성공한다. 그런데 몇 초 뒤 빈 디렉터리로 다시 나타날 수 있다. 칸반은 **요청받은 이름의 보드를 즉석에서 만들기** 때문에, 그 이름을 아직 붙잡고 있는 쪽이 다시 만들어낸다. 대개 **칸반 대시보드**다 — 브라우저 탭이 보던 보드를 계속 조회한다. 대시보드를 재시작하면 멎는다. 다른 머신에서 실측했다: 대시보드를 확실히 종료하면 보드가 지워진 채로 남고, 다시 켜도 되살아나지 않는다(새 세션은 사라진 보드를 요청하지 않는다).
+
+`council gc`가 회의 없는 보드를 청소하지만 조회 중인 프로세스와의 경합에서 질 수 있다. 남은 보드에는 카드가 없어 아무 영향이 없다.
 
 ---
 

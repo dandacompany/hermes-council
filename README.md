@@ -62,6 +62,7 @@ Handlers follow the Hermes contract `handle(args: dict, **kwargs) -> str` (JSON 
 | `council_archive`     | Archive a finished meeting (reversible) and archive its board, to tidy the list.                                                                                                |
 | `council_decide`      | Resolve an open HITL decision gate — record the human's choice and resume the meeting.                                                                                          |
 | `council_relay_flush` | Post the speeches no participant can relay for itself (the moderator lacks credentials), exactly once each. Runs on every `council run` poll.                                   |
+| `council_gc`          | Drop archived meetings past their age, and sweep council boards whose meeting no longer exists.                                                                                 |
 | `council_vote`        | Open a human vote/decision gate mid-meeting (question + options) for a person to resolve.                                                                                       |
 
 `council_start` and `council_status` also return `warnings` — preflight risk checks (no running gateway; a profile in `manual` approval mode, which can time out background workers) and transcript-lint findings (malformed headers, missing/duplicate SUMMARY/FINAL).
@@ -117,6 +118,20 @@ Everything lives under `~/.hermes/.council/`:
 ## Attribution
 
 Built on the Hermes Agent kanban system (`kanban_create` fan-out + gateway dispatcher). MIT licensed — see `LICENSE`.
+
+## A deleted board comes back empty
+
+`council rm` deletes the meeting's board and the deletion really does succeed —
+but the board can reappear seconds later as an empty directory. Kanban creates a
+board on demand for whoever names it, so anything still holding that name
+recreates it. In practice that is the kanban **dashboard**, which keeps polling a
+board an open browser tab was looking at. Restarting the dashboard stops it:
+verified on a second machine that killing the dashboard leaves the board deleted,
+and restarting it does not bring the board back, because a fresh session no
+longer asks for a board that is gone.
+
+`council gc` sweeps boards whose meeting no longer exists, but it can lose the
+race against a live poller. A leftover board holds no cards and affects nothing.
 
 ---
 
