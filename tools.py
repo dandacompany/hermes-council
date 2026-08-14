@@ -129,9 +129,21 @@ def handle_start(args: dict, **kwargs) -> str:
         # A brief may be inline text or a path to a file; resolve to text.
         brief_text = ""
         if brief_raw:
-            import pathlib
-            bp = pathlib.Path(str(brief_raw)).expanduser()
-            brief_text = bp.read_text(encoding="utf-8") if bp.is_file() else str(brief_raw)
+            import os, pathlib
+            raw = str(brief_raw)
+            bp = pathlib.Path(raw).expanduser()
+            if bp.is_file():
+                brief_text = bp.read_text(encoding="utf-8")
+            elif _looks_like_a_path(raw):
+                # A path that does not resolve used to be kept as inline text, so
+                # the "brief" the panel read was the path string and has_brief said
+                # true. Relative paths are the usual victim: over a messenger there
+                # is no working directory to resolve them against.
+                return _dump({"error": f"brief file not found: {raw} "
+                                       f"(resolved against {os.getcwd()}) — "
+                                       "절대경로를 주거나, 브리프 본문을 그대로 넣으세요."})
+            else:
+                brief_text = raw
         brief_note = ("참고자료: 작업 디렉토리의 brief.md를 발언/판단 전에 반드시 함께 읽어라."
                       if brief_text else "")
 
@@ -505,6 +517,19 @@ def handle_doctor(args: dict, **kwargs) -> str:
         home_writable_fn=_home_writable)
     return _dump({"checks": [{"name": n, "ok": ok, "detail": d} for n, ok, d in checks],
                   "all_ok": all(ok for _, ok, _ in checks)})
+
+
+def _looks_like_a_path(text: str) -> bool:
+    """A brief argument meant as a file, not as prose.
+
+    One line, no spaces, and either a directory separator or a document-ish
+    suffix. Prose briefs are multi-word, so this only claims the shapes a person
+    types when they mean "read this file".
+    """
+    t = text.strip()
+    if not t or len(t.split()) != 1 or "\n" in t:
+        return False
+    return "/" in t or t.lower().endswith((".md", ".txt", ".markdown", ".rst"))
 
 
 def _looks_like_slug(text: str) -> bool:

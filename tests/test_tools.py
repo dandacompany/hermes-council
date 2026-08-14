@@ -563,3 +563,33 @@ def test_dry_run_surfaces_the_settings_a_person_checks_on_screen():
     assert out["max_turns"] == 3
     assert out["mode"] == "sequential"
     assert out["panel"] == ["mia", "noah"] and out["moderator"] == "sophie"
+
+
+def test_brief_that_looks_like_a_path_but_is_missing_is_an_error_not_a_brief():
+    """A relative path has no meaning over Slack — there is no working directory
+    there. It used to be swallowed as inline text: has_brief went true and the
+    'brief' the panel read was the path string itself."""
+    out = json.loads(tools.handle_start({
+        "topic": "T", "panel": ["mia"], "moderator": "sophie",
+        "brief": "briefs/council-brief.md"}))
+    assert "error" in out
+    assert "briefs/council-brief.md" in out["error"]
+    import os
+    assert os.getcwd() in out["error"]          # says what the path was resolved against
+
+
+def test_brief_inline_prose_is_still_inline(tmp_path):
+    out = json.loads(tools.handle_start({
+        "topic": "T", "panel": ["mia"], "moderator": "sophie",
+        "brief": "이번 안건의 배경은 이렇다. 작년 대비 비용이 늘었다."}))
+    assert "error" not in out
+    assert registry.load_meta(out["slug"])["has_brief"] is True
+
+
+def test_brief_absolute_path_still_reads(tmp_path):
+    f = tmp_path / "agenda.md"
+    f.write_text("## 배경\n맥락.\n", encoding="utf-8")
+    out = json.loads(tools.handle_start({
+        "topic": "T", "panel": ["mia"], "moderator": "sophie", "brief": str(f)}))
+    assert "error" not in out
+    assert "맥락" in (registry.meeting_dir(out["slug"]) / "brief.md").read_text(encoding="utf-8")

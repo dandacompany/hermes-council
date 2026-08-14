@@ -43,7 +43,9 @@ hermes -p <profile> council --help       # CLI subcommands
 
 ## Slash command
 
-`/council` takes three shapes. With no argument it lists meetings; with a bare slug it shows that meeting's status; with anything else — a sentence, several lines, whatever you would have typed to ask for a meeting — it hands the request to the agent to open via `council_start`. That last shape is the one people reach for after installing the plugin.
+`/council <request>` reaches the agent through the bundled skill, which reads the request and opens the meeting. It is deliberately NOT registered as a plugin slash command: a plugin command's return value is the reply itself, so its handler cannot hand work to an agent — on a messenger the instructions were printed to the user and no meeting opened.
+
+ With no argument it lists meetings; with a bare slug it shows that meeting's status; with anything else — a sentence, several lines, whatever you would have typed to ask for a meeting — it hands the request to the agent to open via `council_start`. That last shape is the one people reach for after installing the plugin.
 
 ## Tools
 

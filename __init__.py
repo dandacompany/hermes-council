@@ -22,8 +22,13 @@ def register(ctx) -> None:
     for name, schema in schemas.ALL.items():
         ctx.register_tool(name=name, toolset="council", schema=schema,
                           handler=_HANDLERS[name], emoji=_EMOJI.get(name, ""))
-    ctx.register_command("council", tools.handle_council_command,
-                         description="회의 개설(자연어) / <slug> 상태 / 인자 없으면 목록", args_hint="[요청 | slug]")
+    # No register_command("council") on purpose. A plugin slash command's return
+    # value IS the reply (`fn(raw_args) -> str | None`), so its handler cannot
+    # hand work to the agent — on Slack the "call council_start with this" text
+    # was printed to the user and no meeting opened. Hermes routes /<name> to a
+    # registered command BEFORE checking skills, so leaving this unregistered is
+    # what lets `/council <request>` reach the skill below, which rewrites the
+    # inbound message and lets the agent act on it.
     ctx.register_cli_command("council", "칸반 기반 다중 프로필 회의",
                              cli.setup, cli.handle, description="council meetings")
     skill_path = pathlib.Path(__file__).parent / "skills" / "council"
