@@ -529,16 +529,19 @@ def test_slash_council_with_no_args_lists_meetings():
     assert "council 회의 목록" in tools.handle_council_command("")
 
 
-def test_slash_council_with_prose_hands_the_request_to_the_agent():
-    """`/council <프롬프트>` is how a meeting gets opened on screen. Treating that
-    prose as a slug answered `unknown meeting slug` — the command has to tell the
-    agent to open the meeting instead, carrying the request through verbatim."""
+def test_slash_council_with_prose_says_it_cannot_open_a_meeting():
+    """A slash handler's return value IS the reply, so this command can never open
+    a meeting — it has no way to hand the request to the agent. Two earlier shapes
+    both failed a live recording: reading the prose as a slug answered "unknown
+    meeting slug", and returning agent instructions printed them to the user. So
+    it now says what it cannot do and shows what to type instead."""
     prompt = ("briefs/council-brief.md 안건으로 투자위원회를 열어줘.\n"
               "패널은 에이다·올리버·노아, 의장은 너야. 최대 세 턴까지만.")
     out = tools.handle_council_command(prompt)
     assert "unknown meeting slug" not in out
-    assert "council_start" in out                    # the agent is told what to call
-    assert prompt in out                             # …with the whole request, newlines intact
+    assert "council_start" not in out                # no developer-facing instructions
+    assert "슬래시 없이" in out                       # …a usable alternative instead
+    assert "결론 내기 전에" in out                    # including the HITL phrasing
 
 
 def test_slash_council_prose_that_looks_like_a_slug_still_shows_status(monkeypatch):

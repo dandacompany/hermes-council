@@ -24,20 +24,21 @@ def test_register_wires_all_surfaces():
         "council_resume", "council_say", "council_archive",
         "council_decide", "council_vote", "council_relay_flush"}
     assert all(t["toolset"] == "council" for t in ctx.tools)
+    assert "council" in ctx.commands
     assert "council" in ctx.cli
     assert ctx.skills and ctx.skills[0][0] == "council"
 
 
-def test_council_does_not_register_a_slash_command_that_shadows_its_skill():
-    """`/council <request>` has to reach the agent, and only the skill path does.
+def test_council_registers_its_slash_command():
+    """`/council` only exists if it is registered as a plugin command.
 
-    A plugin slash command's return value IS the reply (`fn(raw_args) -> str|None`,
-    hermes_cli/plugins.py), so a handler cannot hand work to the agent — on Slack
-    the instruction text was printed to the user and the meeting never opened.
-    The skill path instead rewrites the inbound message and lets the agent act,
-    but a registered command of the same name is matched first and wins. So the
-    command must not exist for the skill to be reachable.
+    Skill slash commands are resolved by scanning the skills directories
+    (agent/skill_commands.scan_skill_commands → get_external_skills_dirs), and a
+    plugin's bundled skill does not live there — register_skill() makes the skill
+    loadable, not slash-addressable. Dropping the command registration in 0.10.0
+    therefore did not move `/council` to the skill path; it removed `/council`
+    entirely ("Unknown command /council" on Slack).
     """
     ctx = FakeCtx(); register(ctx)
-    assert "council" not in ctx.commands
+    assert "council" in ctx.commands
     assert ctx.skills and ctx.skills[0][0] == "council"

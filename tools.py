@@ -550,15 +550,16 @@ def handle_council_command(raw_args: str = "", **kwargs) -> str:
     try:
         arg = raw_args.strip()
         if arg and not _looks_like_slug(arg):
-            return (
-                "사용자가 `/council`로 회의 개설을 요청했습니다. 아래 요청을 읽고 "
-                "council_start 도구를 호출하세요 — topic·panel·moderator는 필수이고, "
-                "mode·max_turns·roles·brief·relay는 요청에 언급된 것만 채웁니다. "
-                "결론·종료 전에 사람에게 묻거나 승인받으라는 말이 있으면 hitl=true를 반드시 넣으세요. "
-                "예행/미리보기를 요청했다면 dry_run=true로 부르세요. "
-                "프로필 이름은 실제 프로필로 옮기고(예: '에이다'→'ada'), 불명확하면 "
-                "council_start의 오류 메시지를 보고 바로잡습니다.\n\n"
-                "--- 사용자 요청 ---\n" + arg)
+            # A slash handler's return value is the reply itself, so this command
+            # cannot open a meeting no matter what it returns — it has no way to
+            # hand the request to the agent. Say so, and show what does work.
+            return ("`/council`은 회의를 열 수 없습니다 — 목록과 상태 조회 전용입니다.\n"
+                    "회의는 슬래시 없이 그냥 말하면 열립니다:\n\n"
+                    "  <안건 파일의 절대경로 또는 안건 내용>으로 회의를 열어줘.\n"
+                    "  패널은 <프로필들>, 의장은 <프로필>. 최대 <n>턴.\n"
+                    "  결론 내기 전에 나한테 물어봐.        ← 사람 결정 게이트\n"
+                    "  먼저 예행으로 보여줘.                 ← 실제로 열기 전 확인\n\n"
+                    "`/council` = 회의 목록 · `/council <slug>` = 그 회의 상태.")
         if arg:
             return handle_status({"slug": arg})
         rows = registry.load_index()

@@ -61,7 +61,7 @@ hermes council --help
 
 `council_start`·`council_status`는 `warnings`도 반환한다 — 프리플라이트(게이트웨이 미실행, manual 승인 모드로 인한 백그라운드 타임아웃 위험)와 회의록 린트(헤더 형식 오류, SUMMARY/FINAL 누락·중복). 막힌 회의는 `council_resume(slug)`로 복구한다.
 
-이 외에 `hermes council {start|run|status|list|collect|stop|resume|gc|doctor}` CLI와 번들 `council` 스킬이 등록된다. 슬래시 `/council <요청>`은 그 스킬로 연결된다 — 플러그인 슬래시 커맨드로는 일부러 등록하지 않았다. 플러그인 커맨드는 반환값이 곧 사용자 응답이라 핸들러가 에이전트에게 일을 넘길 수 없고, 실제로 슬랙에서 지시문만 출력되고 회의가 열리지 않았다.
+이 외에 `hermes council {start|run|status|list|collect|stop|resume|gc|doctor}` CLI와 번들 `council` 스킬이 등록된다. **회의는 슬래시가 아니라 말로 연다.** `/council`은 목록, `/council <slug>`는 상태이고, 그 외의 것을 주면 "회의는 못 연다"고 알리며 어떻게 말하면 되는지 틀을 보여준다. 이 한계는 구조적이다 — 플러그인 커맨드는 반환값이 곧 사용자 응답이라 핸들러가 에이전트에게 일을 넘길 수 없고, 번들 스킬로 우회할 수도 없다(스킬 슬래시는 스킬 디렉터리 스캔으로 해석되는데 플러그인 번들 스킬은 거기 없다).
 
 ### 더 풍부한 회의
 

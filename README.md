@@ -43,7 +43,9 @@ hermes -p <profile> council --help       # CLI subcommands
 
 ## Slash command
 
-`/council <request>` reaches the agent through the bundled skill, which reads the request and opens the meeting. It is deliberately NOT registered as a plugin slash command: a plugin command's return value is the reply itself, so its handler cannot hand work to an agent — on a messenger the instructions were printed to the user and no meeting opened.
+**Meetings are opened by asking, not by a slash command.** `/council` lists meetings and `/council <slug>` shows one; given anything else it explains that it cannot open a meeting and prints the shape of a request that can.
+
+That limit is structural. A plugin command's return value *is* the reply (`fn(raw_args) -> str | None`), so the handler has no way to hand a request to the agent. Routing `/council` to the bundled skill does not help either: skill slash commands are resolved by scanning the skills directories, and a plugin's bundled skill is not in them — `register_skill()` makes a skill loadable, not slash-addressable.
 
  With no argument it lists meetings; with a bare slug it shows that meeting's status; with anything else — a sentence, several lines, whatever you would have typed to ask for a meeting — it hands the request to the agent to open via `council_start`. That last shape is the one people reach for after installing the plugin.
 
