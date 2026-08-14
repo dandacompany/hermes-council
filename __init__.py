@@ -23,7 +23,7 @@ def register(ctx) -> None:
         ctx.register_tool(name=name, toolset="council", schema=schema,
                           handler=_HANDLERS[name], emoji=_EMOJI.get(name, ""))
     ctx.register_command("council", tools.handle_council_command,
-                         description="council 회의 목록 / <slug>로 상태", args_hint="[slug]")
+                         description="회의 개설(자연어) / <slug> 상태 / 인자 없으면 목록", args_hint="[요청 | slug]")
     ctx.register_cli_command("council", "칸반 기반 다중 프로필 회의",
                              cli.setup, cli.handle, description="council meetings")
     skill_path = pathlib.Path(__file__).parent / "skills" / "council"

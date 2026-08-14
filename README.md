@@ -41,6 +41,10 @@ hermes -p <profile> council doctor       # plugin/gateway/kanban/registry checks
 hermes -p <profile> council --help       # CLI subcommands
 ```
 
+## Slash command
+
+`/council` takes three shapes. With no argument it lists meetings; with a bare slug it shows that meeting's status; with anything else — a sentence, several lines, whatever you would have typed to ask for a meeting — it hands the request to the agent to open via `council_start`. That last shape is the one people reach for after installing the plugin.
+
 ## Tools
 
 Handlers follow the Hermes contract `handle(args: dict, **kwargs) -> str` (JSON string).

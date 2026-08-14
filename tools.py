@@ -500,10 +500,32 @@ def handle_doctor(args: dict, **kwargs) -> str:
                   "all_ok": all(ok for _, ok, _ in checks)})
 
 
+def _looks_like_slug(text: str) -> bool:
+    """A slug is one bare token — meeting ids have no spaces or newlines."""
+    return len(text.split()) == 1 and "\n" not in text
+
+
 def handle_council_command(raw_args: str = "", **kwargs) -> str:
-    """`/council` — list meetings from the registry, or show one when a slug is given."""
+    """`/council` — open a meeting, show one, or list them.
+
+    Three shapes, because this is the name people reach for after installing the
+    plugin. Anything that is not a bare slug is a request to hold a meeting: the
+    prose is handed back to the agent with instructions to call council_start,
+    since only the agent can turn "패널은 에이다·올리버" into arguments. Reading
+    that prose as a slug — what this used to do — answered "unknown meeting slug"
+    to someone who was asking for a meeting.
+    """
     try:
         arg = raw_args.strip()
+        if arg and not _looks_like_slug(arg):
+            return (
+                "사용자가 `/council`로 회의 개설을 요청했습니다. 아래 요청을 읽고 "
+                "council_start 도구를 호출하세요 — topic·panel·moderator는 필수이고, "
+                "mode·max_turns·roles·brief·hitl·relay는 요청에 언급된 것만 채웁니다. "
+                "예행/미리보기를 요청했다면 dry_run=true로 부르세요. "
+                "프로필 이름은 실제 프로필로 옮기고(예: '에이다'→'ada'), 불명확하면 "
+                "council_start의 오류 메시지를 보고 바로잡습니다.\n\n"
+                "--- 사용자 요청 ---\n" + arg)
         if arg:
             return handle_status({"slug": arg})
         rows = registry.load_index()

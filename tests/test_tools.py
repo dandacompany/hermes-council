@@ -515,3 +515,39 @@ def test_gc_sweeps_council_boards_with_no_meeting_behind_them(monkeypatch):
     out = json.loads(tools.handle_gc({}))
     assert out["boards_swept"] == ["council-ghost", "council-gone"]
     assert swept == ["ghost", "gone"]                 # remove_board takes the slug
+
+
+def test_slash_council_with_a_slug_shows_that_meeting(monkeypatch):
+    monkeypatch.setattr(board, "list_cards", lambda b, **k: [])
+    start = json.loads(tools.handle_start({"topic": "T", "panel": ["mia"], "moderator": "sophie"}))
+    out = json.loads(tools.handle_council_command(start["slug"]))
+    assert out["slug"] == start["slug"]
+
+
+def test_slash_council_with_no_args_lists_meetings():
+    tools.handle_start({"topic": "강의 기획", "panel": ["mia"], "moderator": "sophie"})
+    assert "council 회의 목록" in tools.handle_council_command("")
+
+
+def test_slash_council_with_prose_hands_the_request_to_the_agent():
+    """`/council <프롬프트>` is how a meeting gets opened on screen. Treating that
+    prose as a slug answered `unknown meeting slug` — the command has to tell the
+    agent to open the meeting instead, carrying the request through verbatim."""
+    prompt = ("briefs/council-brief.md 안건으로 투자위원회를 열어줘.\n"
+              "패널은 에이다·올리버·노아, 의장은 너야. 최대 세 턴까지만.")
+    out = tools.handle_council_command(prompt)
+    assert "unknown meeting slug" not in out
+    assert "council_start" in out                    # the agent is told what to call
+    assert prompt in out                             # …with the whole request, newlines intact
+
+
+def test_slash_council_prose_that_looks_like_a_slug_still_shows_status(monkeypatch):
+    """A bare word is still a slug lookup — that path predates this and is used."""
+    monkeypatch.setattr(board, "list_cards", lambda b, **k: [])
+    start = json.loads(tools.handle_start({"topic": "T", "panel": ["mia"], "moderator": "sophie"}))
+    assert json.loads(tools.handle_council_command(f"  {start['slug']}  "))["slug"] == start["slug"]
+
+
+def test_slash_council_unknown_single_word_is_not_mistaken_for_a_request():
+    out = tools.handle_council_command("nosuchmeeting")
+    assert "unknown meeting slug" in out             # a typo'd slug must say so

@@ -32,6 +32,11 @@ description: Run a kanban-based multi-profile meeting with council_start/status/
 - `council run`은 사람 게이트를 만나면 자동 재개하지 않고 멈춘다 → `decide` 후 `run --attach`로 이어간다.
 - 패널끼리 투표는 `--mode parallel` + "각자 A/B/C 투표하고 이유" 브리프로.
 
+## /council 슬래시
+
+- `/council <요청>` — 회의 개설. 요청 전문을 읽고 `council_start`를 호출한다(예행 요청이면 `dry_run=true`).
+- `/council <slug>` — 그 회의 상태. `/council` — 목록.
+
 ## 말투와 관점
 
 - 발언은 말하듯 쓰게 되어 있다(조항식 문서투 금지). SUMMARY·FINAL·DECISIONS만 문서체다.

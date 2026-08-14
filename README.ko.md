@@ -42,6 +42,10 @@ hermes tools list  | grep council
 hermes council --help
 ```
 
+## 슬래시 커맨드
+
+`/council`은 세 가지 모양이다. 인자가 없으면 회의 목록, 슬러그 하나면 그 회의의 상태, **그 외의 모든 것**(문장이든 여러 줄이든)은 회의 개설 요청으로 보고 에이전트가 `council_start`를 호출하도록 넘긴다. 플러그인을 설치한 사람이 가장 먼저 치는 것이 마지막 모양이다.
+
 ## 도구
 
 핸들러는 Hermes 계약 `handle(args: dict, **kwargs) -> str`(JSON 문자열)를 따른다.
