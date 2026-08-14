@@ -39,5 +39,10 @@ def test_cli_start_options_are_all_reachable_from_the_tool_schema():
 
 def test_start_exposes_relay_options():
     props = schemas.START_SCHEMA["parameters"]["properties"]
-    assert props["relay"]["type"] == "string"
     assert props["relay_thread"]["type"] == "boolean"
+    # `relay` takes a target string OR false, so it is deliberately untyped. The
+    # description has to carry the default, or a model will assume it is off and
+    # relaying will silently never happen — which is the bug this replaced.
+    desc = props["relay"]["description"]
+    assert "ON BY DEFAULT" in desc and "false" in desc
+    assert "relay" not in schemas.START_SCHEMA["parameters"]["required"]

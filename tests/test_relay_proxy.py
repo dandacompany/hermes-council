@@ -51,6 +51,7 @@ def meeting(tmp_path, monkeypatch):
     monkeypatch.setattr(board, "profile_approval_mode", lambda p, **k: "yolo")
     monkeypatch.setattr(board, "send_targets", lambda p, **k: {
         "platforms": {"slack": [{"name": "Dante"}] if p == "noah" else []}})
+    monkeypatch.setattr(board, "send", lambda **kw: "1755.0")   # header probe
     out = json.loads(tools.handle_start({"topic": "T", "panel": ["mia", "noah"],
                                          "moderator": "sophie", "relay": "slack:#council"}))
     slug = out["slug"]

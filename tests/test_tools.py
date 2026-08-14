@@ -11,6 +11,9 @@ def _env(tmp_path, monkeypatch):
     monkeypatch.setattr(board, "dispatch", lambda b, **k: {"spawned": [{"task_id": "t_kick"}]})
     monkeypatch.setattr(board, "running_gateway_profiles", lambda **k: ["*"])
     monkeypatch.setattr(board, "profile_approval_mode", lambda p, **k: "yolo")
+    # Relay is on by default, so every start now asks who can send. Without this
+    # stub the suite would shell out to `hermes send --list` for real.
+    monkeypatch.setattr(board, "send_targets", lambda p, **k: {"platforms": {}})
     monkeypatch.setattr(tools, "_now_iso", lambda: "2026-07-22T00:00:00+09:00")
     yield
 
@@ -284,9 +287,12 @@ def test_start_degrades_to_flat_when_opening_the_thread_fails(monkeypatch):
         {"topic": "T", "panel": ["mia"], "moderator": "sophie",
          "relay": "slack:#council"}))
     assert "error" not in out                               # the meeting still starts
-    meta = registry.load_meta(out["slug"])
-    assert meta["relay"]["thread"] == ""                    # flat, no thread
-    assert "slack:#council" in bodies["body"]
+    # The header send doubles as a probe: if it fails the bot cannot post at all,
+    # so relay is switched off with an explanation rather than failing silently
+    # on every single speech.
+    assert registry.load_meta(out["slug"])["relay"] is None
+    assert any("초대" in w for w in out["warnings"])
+    assert "■ 채널 중계" not in bodies["body"]
 
 
 def test_start_warns_when_relay_is_on_but_nobody_can_send(monkeypatch):
@@ -299,13 +305,16 @@ def test_start_warns_when_relay_is_on_but_nobody_can_send(monkeypatch):
 
 def test_start_skips_thread_for_platforms_that_cannot_open_one(monkeypatch):
     sent = {"n": 0}
-    monkeypatch.setattr(board, "send_targets", _capable("sophie"))
+    monkeypatch.setattr(board, "send_targets", lambda p, **k: {
+        "platforms": {"telegram": [{"name": "Dante"}] if p == "sophie" else []}})
     monkeypatch.setattr(board, "send",
                         lambda **kw: sent.__setitem__("n", sent["n"] + 1) or "x")
     out = json.loads(tools.handle_start(
         {"topic": "T", "panel": ["mia"], "moderator": "sophie",
          "relay": "telegram:-100123"}))
-    assert sent["n"] == 0                                   # no header message
+    # The header still goes out — it is the reachability probe — but Telegram's
+    # third segment is a forum topic id, not a message id, so no thread is claimed.
+    assert sent["n"] == 1
     assert registry.load_meta(out["slug"])["relay"]["thread"] == ""
 
 

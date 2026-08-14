@@ -20,7 +20,10 @@ def _add_start_args(p, required=True) -> None:
                    help="패널별 지정 관점 (반복 가능)")
     p.add_argument("--hitl", action="store_true", help="종료 전 사람 승인 게이트 (HITL)")
     p.add_argument("--relay", metavar="TARGET",
-                   help="발언을 메신저 채널로 중계 (예: slack, slack:#council, telegram:-100…:17585)")
+                   help="중계 대상 지정 (예: slack, slack:#council, telegram:-100…:17585). "
+                        "생략하면 사회자가 보낼 수 있는 채널로 자동 중계.")
+    p.add_argument("--no-relay", action="store_true",
+                   help="채널 중계를 끈다 (기본은 켜짐 — 회의 내용이 채널에 그대로 올라간다)")
     p.add_argument("--no-relay-thread", action="store_true",
                    help="중계 시 스레드로 묶지 않고 채널에 평면 전송")
 
@@ -92,7 +95,8 @@ def _start_args(args) -> dict:
             "brief": getattr(args, "brief", None),
             "roles": _parse_roles(getattr(args, "role", [])),
             "hitl": bool(getattr(args, "hitl", False)),
-            "relay": getattr(args, "relay", None),
+            "relay": (False if getattr(args, "no_relay", False)
+                      else getattr(args, "relay", None) or True),
             "relay_thread": not getattr(args, "no_relay_thread", False)}
 
 

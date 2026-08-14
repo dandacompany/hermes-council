@@ -138,3 +138,48 @@ def pending_proxy_sections(transcript: str, *, proxy_for, sent_keys) -> list:
 
 def proxy_subject(topic: str, section: dict) -> str:
     return f"[council: {topic}] ▸ {section['speaker']} — TURN {section['turn']} (대리)"
+
+
+# Conversation platforms first: a meeting reads as a conversation, and email or a
+# push-only channel is a poor home for one. Anything not listed still works when
+# the caller names it explicitly; this order only decides the automatic pick.
+_PLATFORM_PREFERENCE = ("slack", "discord", "telegram", "matrix", "teams",
+                        "google_chat", "signal", "whatsapp")
+
+
+def auto_platform(moderator: str, *, list_fn) -> str:
+    """The platform a meeting relays to when the caller named no target.
+
+    Relay is on by default, so this has to answer "where?" without being told.
+    It answers from the moderator's own messaging directory — the meeting speaks
+    where its moderator can speak — and returns "" when it cannot send anywhere,
+    which is the common case and means "no relay", not "problem".
+    """
+    try:
+        platforms = (list_fn(moderator) or {}).get("platforms") or {}
+    except Exception:
+        return ""
+    have = {name for name, rows in platforms.items() if rows}
+    for name in _PLATFORM_PREFERENCE:
+        if name in have:
+            return name
+    return sorted(have)[0] if have else ""
+
+
+def opted_out(moderator: str) -> bool:
+    """True when the moderator's profile config says council must not relay.
+
+    A profile that should never broadcast its meetings says so once, in
+    `council: {relay: false}`, instead of every caller having to remember.
+    """
+    try:
+        from . import souls
+    except ImportError:
+        import souls  # type: ignore
+    try:
+        import yaml
+        text = (souls._profiles_dir() / moderator / "config.yaml").read_text(encoding="utf-8")
+        cfg = yaml.safe_load(text) or {}
+        return (cfg.get("council") or {}).get("relay") is False
+    except Exception:
+        return False                       # unreadable config is not an opt-out

@@ -33,7 +33,14 @@ def handle_start(args: dict, **kwargs) -> str:
         roles = souls.roles_for(panel, dict(args.get("roles") or {}))
         brief_raw = args.get("brief")
         hitl = bool(args.get("hitl", False))
-        relay_spec = str(args.get("relay") or "").strip()
+        # Relay is on by default. Having to ask for it made it fail silently: a
+        # caller who forgot got a finished meeting and an empty channel, with no
+        # warning anywhere. The person opening a meeting knows where it will go,
+        # so NOT relaying is what you state — `relay: false` / `--no-relay`, or
+        # `council: {relay: false}` in the moderator's profile.
+        relay_arg = args.get("relay", True)
+        relay_off = relay_arg is False or relay_arg in ("false", "off", "no")
+        relay_spec = "" if relay_off else str(relay_arg if isinstance(relay_arg, str) else "").strip()
         relay_thread = bool(args.get("relay_thread", True))
 
         known = set(board.list_profiles())
@@ -48,6 +55,12 @@ def handle_start(args: dict, **kwargs) -> str:
 
         # --- relay: decide once, then let the workers carry it card to card ---
         relay_meta, relay_block = None, ""
+        if not relay_off and not relay_spec and not relay.opted_out(moderator):
+            # No target named: relay where the moderator can actually speak. An
+            # empty result is the common case (no messenger configured at all)
+            # and means "no relay" — silently, since nothing was asked for.
+            auto = relay.auto_platform(moderator, list_fn=board.send_targets)
+            relay_spec = auto                    # bare platform → Hermes routes to its home channel
         if relay_spec:
             target = relay.parse_target(relay_spec)
             capable = relay.relay_capable([moderator, *panel], target["platform"],
@@ -75,14 +88,21 @@ def handle_start(args: dict, **kwargs) -> str:
             # moderator whenever the moderator can send. Gating this on the
             # moderator alone left meetings with an incapable moderator threadless,
             # scattering every relayed speech as its own top-level message.
-            if not dry_run and relay_thread and relay.can_open_thread(target) and sender:
+            # It also probes the target. A bot that is not in the channel fails
+            # every later post too, so failing here means the whole relay is dead —
+            # say it once now instead of silently losing every speech.
+            if not dry_run and sender:
                 try:
                     mid = board.send(profile=sender,
                                      target=relay.format_target(target),
                                      message=f"▶ 회의 시작: {topic}")
-                    target["thread"] = mid
+                    if relay_thread and relay.can_open_thread(target):
+                        target["thread"] = mid
                 except Exception:
-                    pass                    # degrade to flat; the meeting still runs
+                    warnings.append(
+                        f"경고: 중계 대상({relay.format_target(target)})으로 보낼 수 없어 중계를 끕니다 — "
+                        "봇이 그 채널에 초대되어 있는지 확인하세요. 회의는 정상 진행됩니다.")
+                    relay_spec = ""         # fall through to "no relay" below
             # Worker-side proxying needs a moderator who can send — its card is the
             # one that runs between every pair of turns. When it can't, the poller
             # takes the proxy work instead (council_relay_flush), which is why the
@@ -90,12 +110,16 @@ def handle_start(args: dict, **kwargs) -> str:
             proxy_for = [p for p in panel if p not in capable] if moderator_capable else []
             poller_proxy_for = ([] if moderator_capable
                                 else [p for p in [moderator, *panel] if p not in capable])
-            relay_meta = {"target": relay.format_target(target),
-                          "thread": target["thread"], "proxy_for": proxy_for,
-                          "poller_proxy_for": poller_proxy_for,
-                          "sender": sender}
-            relay_block = relay.build_relay_block(
-                target=target, topic=topic, capable=capable_ordered, proxy_for=proxy_for)
+            if relay_spec and sender:
+                warnings.append(
+                    f"안내: 발언을 {relay.format_target(target)}(으)로 중계합니다 — "
+                    "회의 내용이 그 채널에 그대로 올라갑니다. 끄려면 `--no-relay`.")
+                relay_meta = {"target": relay.format_target(target),
+                              "thread": target["thread"], "proxy_for": proxy_for,
+                              "poller_proxy_for": poller_proxy_for,
+                              "sender": sender}
+                relay_block = relay.build_relay_block(
+                    target=target, topic=topic, capable=capable_ordered, proxy_for=proxy_for)
 
         taken = {r["slug"] for r in registry.load_index()}
         # Date-prefixed slug for readable, sortable meeting ids (unless explicit slug given).
