@@ -95,8 +95,8 @@ def _start_args(args) -> dict:
             "brief": getattr(args, "brief", None),
             "roles": _parse_roles(getattr(args, "role", [])),
             "hitl": bool(getattr(args, "hitl", False)),
-            "relay": (False if getattr(args, "no_relay", False)
-                      else getattr(args, "relay", None) or True),
+            "relay": getattr(args, "relay", None),
+            "relay_off": bool(getattr(args, "no_relay", False)),
             "relay_thread": not getattr(args, "no_relay_thread", False)}
 
 

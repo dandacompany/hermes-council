@@ -38,9 +38,15 @@ def handle_start(args: dict, **kwargs) -> str:
         # warning anywhere. The person opening a meeting knows where it will go,
         # so NOT relaying is what you state — `relay: false` / `--no-relay`, or
         # `council: {relay: false}` in the moderator's profile.
-        relay_arg = args.get("relay", True)
-        relay_off = relay_arg is False or relay_arg in ("false", "off", "no")
+        # `relay` names a destination; `relay_off` is the only thing that disables.
+        # They are separate because a model expressing "the request said nothing
+        # about this" reached for `relay: false`, and a live meeting ran with no
+        # relay as a result. Omitting both now cannot disable anything.
+        relay_arg = args.get("relay")
+        relay_off = bool(args.get("relay_off", False)) or relay_arg is False \
+            or (isinstance(relay_arg, str) and relay_arg.strip().lower() in ("false", "off", "no"))
         relay_spec = "" if relay_off else str(relay_arg if isinstance(relay_arg, str) else "").strip()
+        relay_off_reason = "off_requested" if relay_off else None
         relay_thread = bool(args.get("relay_thread", True))
 
         known = set(board.list_profiles())
@@ -55,7 +61,9 @@ def handle_start(args: dict, **kwargs) -> str:
 
         # --- relay: decide once, then let the workers carry it card to card ---
         relay_meta, relay_block = None, ""
-        if not relay_off and not relay_spec and not relay.opted_out(moderator):
+        if not relay_off and relay.opted_out(moderator):
+            relay_off_reason = "profile_opted_out"
+        elif not relay_off and not relay_spec:
             # No target named: relay where the moderator can actually speak. An
             # empty result is the common case (no messenger configured at all)
             # and means "no relay" — silently, since nothing was asked for.
@@ -69,6 +77,7 @@ def handle_start(args: dict, **kwargs) -> str:
             capable_ordered = [p for p in [moderator, *panel] if p in capable]
             sender = capable_ordered[0] if capable_ordered else None
             if not capable:
+                relay_off_reason = "no_capable_profile"
                 warnings.append(
                     "경고: 중계를 켰으나 발신 가능한 프로필이 없습니다 — 회의는 정상 진행되고 "
                     "채널 전송만 생략됩니다. (`hermes -p <프로필> send --list`로 확인)")
@@ -103,6 +112,7 @@ def handle_start(args: dict, **kwargs) -> str:
                         f"경고: 중계 대상({relay.format_target(target)})으로 보낼 수 없어 중계를 끕니다 — "
                         "봇이 그 채널에 초대되어 있는지 확인하세요. 회의는 정상 진행됩니다.")
                     relay_spec = ""         # fall through to "no relay" below
+                    relay_off_reason = "target_unreachable"
             # Worker-side proxying needs a moderator who can send — its card is the
             # one that runs between every pair of turns. When it can't, the poller
             # takes the proxy work instead (council_relay_flush), which is why the
@@ -152,7 +162,10 @@ def handle_start(args: dict, **kwargs) -> str:
                 "board": board_slug, "status": "seeded", "created_at": _now_iso(),
                 "final_at": None, "roles": roles, "has_brief": bool(brief_text),
                 "card_cap": preflight.card_cap(len(panel), max_turns), "hitl": hitl,
-                "relay": relay_meta}
+                "relay": relay_meta,
+                # Why there is no relay, so a later "why is the channel empty?"
+                # is answered by the meeting itself instead of a session DB dig.
+                "relay_off_reason": None if relay_meta else (relay_off_reason or "no_capable_profile")}
         transcript_path = str(registry.meeting_dir(slug) / "transcript.md")
         body_text = protocols.build_kickoff(mode=mode, topic=topic, slug=slug, moderator=moderator,
                                             panel=panel, max_turns=max_turns,
