@@ -328,7 +328,22 @@ def handle_rm(args: dict, **kwargs) -> str:
         slug = str(args.get("slug") or "").strip()
         if not slug:
             return _dump({"error": "slug is required"})
-        registry.load_meta(slug)                       # existence check
+        meta = registry.load_meta(slug)                # existence check
+        # Block live cards first. A worker that is already running keeps calling
+        # kanban, and those calls recreate the board directory we are about to
+        # delete — the deletion succeeds and the board reappears, empty. Blocking
+        # stops the dispatcher from starting any more; a worker mid-flight can
+        # still resurrect it, which is why `council gc` also sweeps.
+        try:
+            for c in board.list_cards(meta["board"]):
+                if c.get("status") in ("done", "blocked"):
+                    continue
+                try:
+                    board.block(meta["board"], c.get("id"), reason="회의 삭제")
+                except Exception:
+                    continue
+        except Exception:
+            pass                                       # best-effort; deletion still proceeds
         board.remove_board(slug, hard=True)
         registry.delete_meeting(slug)
         return _dump({"slug": slug, "removed": True})
@@ -355,7 +370,23 @@ def handle_gc(args: dict, **kwargs) -> str:
             if when < cutoff:
                 json.loads(handle_rm({"slug": r["slug"]}))
                 removed.append(r["slug"])
-        return _dump({"removed": removed, "count": len(removed), "days": days})
+        # Sweep council boards with no meeting behind them. A worker still in
+        # flight when its meeting was deleted recreates the board directory it
+        # was deleted from; without this those empty boards pile up in the list.
+        swept = []
+        try:
+            live = {f"council-{r['slug']}" for r in registry.load_index()}
+            for b in board.list_boards():
+                if b.startswith("council-") and b not in live:
+                    try:
+                        board.remove_board(b[len("council-"):], hard=True)
+                        swept.append(b)
+                    except Exception:
+                        continue
+        except Exception:
+            pass                                       # best-effort housekeeping
+        return _dump({"removed": removed, "count": len(removed), "days": days,
+                      "boards_swept": swept})
     except Exception as exc:
         return _dump({"error": f"council_gc failed: {type(exc).__name__}: {exc}"})
 

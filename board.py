@@ -61,6 +61,20 @@ def list_cards(board: str, *, runner=_default_runner) -> list[dict]:
     return _json_arr(runner(["kanban", "--board", board, "list", "--json"]))
 
 
+def list_boards(*, runner=_default_runner) -> list[str]:
+    """Every board slug the kanban knows about."""
+    return [row.get("slug") for row in _json_arr(runner(["kanban", "boards", "list", "--json"]))
+            if isinstance(row, dict) and row.get("slug")]
+
+
+def block(board: str, task_id: str, *, reason: str = "", runner=_default_runner) -> None:
+    """Mark a card blocked so the dispatcher stops starting workers for it."""
+    args = ["kanban", "--board", board, "block", task_id]
+    if reason:
+        args += ["--reason", reason]
+    runner(args)
+
+
 def unblock(board: str, task_id: str, *, runner=_default_runner) -> None:
     runner(["kanban", "--board", board, "unblock", task_id])
 

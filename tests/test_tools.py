@@ -469,3 +469,49 @@ def test_status_reports_relay_state(monkeypatch):
     st = json.loads(tools.handle_status({"slug": start["slug"]}))
     assert st["relay"]["target"] == "slack:#council:1755.1"
     assert st["relay"]["proxy_for"] == ["mia"]
+
+
+def test_rm_blocks_live_cards_before_deleting_the_board(monkeypatch):
+    """A worker already running keeps calling kanban, and those calls recreate the
+    board directory it was deleted from. Blocking first stops the dispatcher from
+    starting more, which is the part council can actually control."""
+    seq = []
+    monkeypatch.setattr(board, "list_cards", lambda b, **k: [
+        {"id": "t_a", "status": "running"}, {"id": "t_b", "status": "done"},
+        {"id": "t_c", "status": "ready"}])
+    monkeypatch.setattr(board, "block", lambda b, t, **k: seq.append(("block", t)))
+    monkeypatch.setattr(board, "remove_board", lambda s, **k: seq.append(("rm", s)))
+    start = json.loads(tools.handle_start({"topic": "T", "panel": ["mia"], "moderator": "sophie"}))
+    out = json.loads(tools.handle_rm({"slug": start["slug"]}))
+    assert out["removed"] is True
+    # live cards blocked first, finished ones left alone, then the board goes
+    assert seq == [("block", "t_a"), ("block", "t_c"), ("rm", start["slug"])]
+
+
+def test_rm_still_deletes_when_blocking_fails(monkeypatch):
+    monkeypatch.setattr(board, "list_cards", lambda b, **k: [{"id": "t_a", "status": "running"}])
+
+    def boom(b, t, **k):
+        raise board.BoardError("gone")
+
+    removed = []
+    monkeypatch.setattr(board, "block", boom)
+    monkeypatch.setattr(board, "remove_board", lambda s, **k: removed.append(s))
+    start = json.loads(tools.handle_start({"topic": "T", "panel": ["mia"], "moderator": "sophie"}))
+    assert json.loads(tools.handle_rm({"slug": start["slug"]}))["removed"] is True
+    assert removed == [start["slug"]]
+
+
+def test_gc_sweeps_council_boards_with_no_meeting_behind_them(monkeypatch):
+    """A worker mid-flight can recreate a board after its meeting was deleted.
+    Those leftovers accumulate in the board list, so gc removes the ones whose
+    meeting no longer exists — and never touches a board that still has one."""
+    start = json.loads(tools.handle_start({"topic": "T", "panel": ["mia"], "moderator": "sophie"}))
+    live = f"council-{start['slug']}"
+    monkeypatch.setattr(board, "list_boards",
+                        lambda **k: ["default", live, "council-ghost", "council-gone"])
+    swept = []
+    monkeypatch.setattr(board, "remove_board", lambda s, **k: swept.append(s))
+    out = json.loads(tools.handle_gc({}))
+    assert out["boards_swept"] == ["council-ghost", "council-gone"]
+    assert swept == ["ghost", "gone"]                 # remove_board takes the slug

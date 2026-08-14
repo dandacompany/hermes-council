@@ -111,3 +111,14 @@ def test_send_uses_the_given_profiles_identity_and_returns_message_id():
     assert mid == "1755.1"
     assert calls[0] == ["-p", "sophie", "send", "--to", "slack:#council",
                         "--json", "▶ 회의 시작: T"]
+
+
+def test_block_marks_a_card_so_the_dispatcher_leaves_it_alone():
+    calls = []
+    board.block("b", "t_1", reason="removing meeting", runner=lambda a: calls.append(list(a)) or "")
+    assert calls[0] == ["kanban", "--board", "b", "block", "t_1", "--reason", "removing meeting"]
+
+
+def test_list_boards_returns_slugs():
+    runner, _ = make_runner({"--json": 'banner\n[{"slug": "default"}, {"slug": "council-a"}]'})
+    assert board.list_boards(runner=runner) == ["default", "council-a"]
